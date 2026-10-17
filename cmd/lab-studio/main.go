@@ -16,10 +16,13 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"golang.org/x/crypto/argon2"
 	_ "modernc.org/sqlite"
 )
+
+const csrfTokenTTL = 30 * time.Minute
 
 const (
 	argonMemoryKiB    = 19 * 1024
@@ -78,10 +81,16 @@ type User struct {
 	PasswordHash string
 }
 
+type csrfEntry struct {
+	token   string
+	expires time.Time
+}
+
 type Store struct {
 	db       *sql.DB
 	mu       sync.Mutex
-	sessions map[string]string // token -> lowercase email, in-memory (nicht persistiert)
+	sessions map[string]string    // token -> lowercase email, in-memory (nicht persistiert)
+	csrf     map[string]csrfEntry // cookie-id -> Token+Ablauf, in-memory
 }
 
 func newStore(dbPath string) (*Store, error) {
@@ -104,7 +113,7 @@ func newStore(dbPath string) (*Store, error) {
 	)`); err != nil {
 		return nil, err
 	}
-	return &Store{db: db, sessions: make(map[string]string)}, nil
+	return &Store{db: db, sessions: make(map[string]string), csrf: make(map[string]csrfEntry)}, nil
 }
 
 var (
@@ -194,6 +203,47 @@ func (s *Store) DeleteUser(email string) error {
 	return nil
 }
 
+// NewCSRFToken erzeugt eine neue Cookie-ID und ein zugehoeriges Token, 30 Minuten gueltig.
+func (s *Store) NewCSRFToken() (cookieID, token string, err error) {
+	cookieID, err = randomToken()
+	if err != nil {
+		return "", "", err
+	}
+	token, err = randomToken()
+	if err != nil {
+		return "", "", err
+	}
+	s.mu.Lock()
+	s.csrf[cookieID] = csrfEntry{token: token, expires: time.Now().Add(csrfTokenTTL)}
+	s.mu.Unlock()
+	return cookieID, token, nil
+}
+
+// CSRFTokenFor liefert das noch gueltige Token zu einer bestehenden Cookie-ID, falls vorhanden.
+func (s *Store) CSRFTokenFor(cookieID string) (string, bool) {
+	s.mu.Lock()
+	e, ok := s.csrf[cookieID]
+	s.mu.Unlock()
+	if !ok || time.Now().After(e.expires) {
+		return "", false
+	}
+	return e.token, true
+}
+
+// ValidateCSRF prueft Cookie-ID gegen eingereichtes Token: existent, nicht abgelaufen, zeitkonstant gleich.
+func (s *Store) ValidateCSRF(cookieID, token string) bool {
+	if cookieID == "" || token == "" {
+		return false
+	}
+	s.mu.Lock()
+	e, ok := s.csrf[cookieID]
+	s.mu.Unlock()
+	if !ok || time.Now().After(e.expires) {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(e.token), []byte(token)) == 1
+}
+
 func randomToken() (string, error) {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
@@ -235,6 +285,7 @@ button{padding:10px;background:#d4af37;border:none;color:#000;font-weight:bold;c
 .error{color:#ff6b6b;text-align:center}
 .ok{color:#8fe388;text-align:center}
 .account-bar{text-align:center;margin-top:24px}
+.nav-btn{background:none;border:none;color:#d4af37;text-decoration:none;font-weight:bold;letter-spacing:1px;margin-left:24px;padding:0;cursor:pointer;font-size:inherit;font-family:inherit}
 `
 
 var tpl = template.Must(template.New("base").Parse(`
@@ -249,7 +300,10 @@ var tpl = template.Must(template.New("base").Parse(`
     <a href="#">LAB-STUDIO</a>
     <a href="#">LAB-CONNECT</a>
     {{if .LoggedIn}}
-      <a href="/logout">Logout</a>
+      <form method="post" action="/logout" style="display:inline">
+        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+        <button type="submit" class="nav-btn">Logout</button>
+      </form>
     {{else}}
       <a href="/register">Registrieren</a>
       <a href="/login">Login</a>
@@ -283,6 +337,7 @@ Oder du hoerst irgendwann auf, deinen Musikprozess aus Einzelteilen zusammenzuba
 <div class="account-bar">
   Angemeldet als {{.Email}} &middot;
   <form method="post" action="/delete-account" style="display:inline">
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
     <button type="submit" onclick="return confirm('Account wirklich endgueltig loeschen?')">Account loeschen</button>
   </form>
 </div>
@@ -293,6 +348,7 @@ Oder du hoerst irgendwann auf, deinen Musikprozess aus Einzelteilen zusammenzuba
 <h1>Registrieren</h1>
 {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
 <form method="post" action="/register">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
   <input type="email" name="email" placeholder="E-Mail" value="{{.Email}}" required>
   <input type="password" name="password" placeholder="Passwort (min. 8 Zeichen)" required>
   <input type="password" name="confirm" placeholder="Passwort wiederholen" required>
@@ -304,6 +360,7 @@ Oder du hoerst irgendwann auf, deinen Musikprozess aus Einzelteilen zusammenzuba
 <h1>Login</h1>
 {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
 <form method="post" action="/login">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
   <input type="email" name="email" placeholder="E-Mail" value="{{.Email}}" required>
   <input type="password" name="password" placeholder="Passwort" required>
   <button type="submit">Anmelden</button>
@@ -312,9 +369,51 @@ Oder du hoerst irgendwann auf, deinen Musikprozess aus Einzelteilen zusammenzuba
 `))
 
 type pageData struct {
-	LoggedIn bool
-	Email    string
-	Error    string
+	LoggedIn  bool
+	Email     string
+	Error     string
+	CSRFToken string
+}
+
+const csrfCookieName = "csrf_id"
+
+// csrfTokenFor liefert ein gueltiges CSRF-Token fuer diesen Request: wiederverwendet ein
+// bestehendes gueltiges Cookie, erzeugt sonst ein neues und setzt das Cookie.
+func csrfTokenFor(w http.ResponseWriter, r *http.Request, store *Store) string {
+	if c, err := r.Cookie(csrfCookieName); err == nil {
+		if token, ok := store.CSRFTokenFor(c.Value); ok {
+			return token
+		}
+	}
+	cookieID, token, err := store.NewCSRFToken()
+	if err != nil {
+		log.Printf("csrf token generation failed: %v", err)
+		return ""
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     csrfCookieName,
+		Value:    cookieID,
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   int(csrfTokenTTL.Seconds()),
+	})
+	return token
+}
+
+// checkCSRF validiert das csrf_token-Formularfeld gegen das csrf_id-Cookie. Bei Fehlschlag
+// wird 403 geschrieben und false zurueckgegeben; der Aufrufer darf die Mutation dann nicht ausfuehren.
+func checkCSRF(w http.ResponseWriter, r *http.Request, store *Store) bool {
+	cookieID := ""
+	if c, err := r.Cookie(csrfCookieName); err == nil {
+		cookieID = c.Value
+	}
+	token := r.FormValue("csrf_token")
+	if !store.ValidateCSRF(cookieID, token) {
+		http.Error(w, "invalid or missing csrf token", http.StatusForbidden)
+		return false
+	}
+	return true
 }
 
 func currentUser(r *http.Request, store *Store) (*User, string, bool) {
@@ -329,7 +428,8 @@ func currentUser(r *http.Request, store *Store) (*User, string, bool) {
 	return u, c.Value, true
 }
 
-func render(w http.ResponseWriter, contentName string, data pageData) {
+func render(w http.ResponseWriter, r *http.Request, store *Store, contentName string, data pageData) {
+	data.CSRFToken = csrfTokenFor(w, r, store)
 	clone, err := tpl.Clone()
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -360,27 +460,30 @@ func main() {
 		if loggedIn {
 			data.Email = u.Email
 		}
-		render(w, "content-home", data)
+		render(w, r, store, "content-home", data)
 	})
 
 	mux.HandleFunc("/register", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
-			render(w, "content-register", pageData{})
+			render(w, r, store, "content-register", pageData{})
 			return
 		}
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		if !checkCSRF(w, r, store) {
+			return
+		}
 		email := r.FormValue("email")
 		password := r.FormValue("password")
 		confirm := r.FormValue("confirm")
 		if msg := validateRegistration(email, password, confirm); msg != "" {
-			render(w, "content-register", pageData{Error: msg, Email: email})
+			render(w, r, store, "content-register", pageData{Error: msg, Email: email})
 			return
 		}
 		if err := store.CreateUser(email, password); err != nil {
-			render(w, "content-register", pageData{Error: err.Error(), Email: email})
+			render(w, r, store, "content-register", pageData{Error: err.Error(), Email: email})
 			return
 		}
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
@@ -388,18 +491,21 @@ func main() {
 
 	mux.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
-			render(w, "content-login", pageData{})
+			render(w, r, store, "content-login", pageData{})
 			return
 		}
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		if !checkCSRF(w, r, store) {
+			return
+		}
 		email := r.FormValue("email")
 		password := r.FormValue("password")
 		u, err := store.Authenticate(email, password)
 		if err != nil {
-			render(w, "content-login", pageData{Error: err.Error(), Email: email})
+			render(w, r, store, "content-login", pageData{Error: err.Error(), Email: email})
 			return
 		}
 		token, err := store.CreateSession(u.Email)
@@ -418,6 +524,13 @@ func main() {
 	})
 
 	mux.HandleFunc("/logout", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if !checkCSRF(w, r, store) {
+			return
+		}
 		if c, err := r.Cookie("session_token"); err == nil {
 			store.DeleteSession(c.Value)
 		}
@@ -428,6 +541,9 @@ func main() {
 	mux.HandleFunc("/delete-account", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if !checkCSRF(w, r, store) {
 			return
 		}
 		u, token, loggedIn := currentUser(r, store)

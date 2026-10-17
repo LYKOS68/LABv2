@@ -24,10 +24,11 @@ go test ./...
 
 Deckt Argon2id-Hash/Verify-Rundlauf und Korrupt-Hash-Handling ab.
 
+- CSRF-Schutz auf allen Mutationen (Register/Login/Logout/Delete-Account): Synchronizer-Token im versteckten Formularfeld gegen HttpOnly-Cookie, 30 Minuten gültig, zeitkonstanter Vergleich. Fehlendes/falsches Token → 403, Mutation läuft nicht. `/logout` ist jetzt ein POST-Formular statt eines GET-Links (war sonst selbst eine CSRF-Lücke).
+
 ## Offene LÜCKEN
 
 - Siehe `docs/01-spezifikation.md` §4: exakte Hex-Farbwerte, Font-Namen, freigestellte Logo-/Signature-Assets fehlen noch (aktuell Text-Platzhalter statt Bild).
-- Kein CSRF-Schutz auf den Formularen — siehe `docs/02-sicherheitserweiterungen-plan.md` Schritt 3 (geplant, noch nicht umgesetzt).
 - Kein Rate-Limiting — siehe `docs/02-sicherheitserweiterungen-plan.md` Schritt 4 (geplant, noch nicht umgesetzt).
 
 ## Verzeichnisstruktur
