@@ -38,10 +38,10 @@ Vollständiges, wahrheitsgetreues Inventar der RAP-LAB-Verzeichnisstruktur, Stan
 | Datei | Eigentümer | Schreiber | Leser | Auslöser | Zweck | Prüfverfahren |
 |---|---|---|---|---|---|---|
 | `README.md` | Roman | KI | Roman, GitHub-Weboberfläche | jeder abgeschlossene Schritt | Einstiegspunkt: Startbefehl, geprüfter Stand, offene LÜCKEN | Startbefehl tatsächlich ausführen — stimmt er mit der realen Route überein? |
-| `docs/01-spezifikation.md` | Roman | KI | Roman, KI (Frontend-Referenz) | Referenzbild-Analyse (erste Kette, Schritt 1/5) | Homepage-Spezifikation, LÜCKEN-Liste zu Assets/Farben/Fonts | Abgleich gegen `content-home`-Template in `main.go` |
-| `docs/CONTRACT.md` | Roman | KI | Roman, KI (vor jeder neuen Datei) | Strukturentscheidung (zweite Kette) | verbindlicher Pfadvertrag für alle Verzeichnisse | jede neue Datei gegen diese Tabelle prüfen |
-| `docs/02-sicherheitserweiterungen-plan.md` | Roman | KI | Roman, KI | Sicherheitsaudit nach Manus-Fragment-Review | 4-Schritte-Plan (Persistenz/Argon2id/CSRF/Rate-Limit) + Nachweis je Schritt | genannte Commit-Hashes in `git log` auffindbar? |
-| `docs/03-verzeichnisinventar.md` (diese Datei) | Roman | KI | Roman, KI | diese Kette, Schritt 1/5 | vollständiges Datei-für-Datei-Inventar | Abgleich gegen `find .` |
+| `hub/rules/01-spezifikation.md` | Roman | KI | Roman, KI (Frontend-Referenz) | Referenzbild-Analyse (erste Kette, Schritt 1/5) | Homepage-Spezifikation, LÜCKEN-Liste zu Assets/Farben/Fonts | Abgleich gegen `content-home`-Template in `main.go` |
+| `hub/rules/CONTRACT.md` | Roman | KI | Roman, KI (vor jeder neuen Datei) | Strukturentscheidung (zweite Kette) | verbindlicher Pfadvertrag für alle Verzeichnisse | jede neue Datei gegen diese Tabelle prüfen |
+| `hub/rules/02-sicherheitserweiterungen-plan.md` | Roman | KI | Roman, KI | Sicherheitsaudit nach Manus-Fragment-Review | 4-Schritte-Plan (Persistenz/Argon2id/CSRF/Rate-Limit) + Nachweis je Schritt | genannte Commit-Hashes in `git log` auffindbar? |
+| `hub/rules/03-verzeichnisinventar.md` (diese Datei) | Roman | KI | Roman, KI | diese Kette, Schritt 1/5 | vollständiges Datei-für-Datei-Inventar | Abgleich gegen `find .` |
 
 ## Startsteuerung / Werkzeugkonfiguration
 
@@ -50,15 +50,13 @@ Vollständiges, wahrheitsgetreues Inventar der RAP-LAB-Verzeichnisstruktur, Stan
 | `.vscode/tasks.json` | Roman | KI | VS Code | Startkomfort ohne Terminal-Tippen | kapselt `go run ./cmd/lab-studio` als Task | Terminal → Run Task → Server startet, Browser zeigt Seite |
 | `.gitignore` | Roman | KI | `git` | Runtime-Dateien sollen nicht versioniert werden | schließt `data/`, `logs/`, `*.exe` von Commits aus | `git status` nach Serverlauf zeigt diese Pfade nicht als untracked |
 
-## Platzhalter-Verzeichnisse (bewusste Vorratsentscheidung, s. `CONTRACT.md`)
+## Noch nicht existierende Ordner (Regel, kein Platzhalter)
 
-| Ordner | Eigentümer | Schreiber | Leser | Auslöser | Zweck | Prüfverfahren | Status |
-|---|---|---|---|---|---|---|---|
-| `web/` | Roman | KI (nur `.gitkeep`) | — | Vertragsentscheidung, kein a/b/c-Auslöser | künftige ausgelagerte Bild-/HTML-/CSS-Assets | — | **LÜCKE: komplett leer, keine Funktion** |
-| `configs/` | Roman | KI (nur `.gitkeep`) | — | dito | künftige handgepflegte Settings | — | **LÜCKE: komplett leer, keine Funktion** |
-| `scripts/` | Roman | KI (nur `.gitkeep`) | — | dito | künftige Wartungs-/Automatisierungsskripte | — | **LÜCKE: komplett leer, keine Funktion** |
-| `verification/` | Roman | KI (nur `.gitkeep`) | — | dito | künftige Check-Protokolle | — | **LÜCKE: komplett leer, keine Funktion** |
-| `logs/` | Roman | — | — | — | laut `CONTRACT.md` für Laufzeit-Logs vorgesehen | — | **LÜCKE: `main.go` schreibt aktuell gar nicht hierhin — nur `log.Println` nach stdout. Ordner füllt sich nur, wenn jemand manuell `> logs/x.log` umleitet** |
+`web/`, `configs/`, `scripts/` existieren aktuell nicht — sie wurden am 2026-10-17 als leere Platzhalter wieder entfernt (keine Nutzung seit Anlage, kein a/b/c-Auslöser). Nach dem neuen Vertrag (`CONTRACT.md`, Regel 1/2) entstehen sie erst mit ihrem ersten echten Inhalt.
+
+| Ordner | Status |
+|---|---|
+| `logs/` | existiert, aber **LÜCKE**: `main.go` schreibt aktuell nicht hierhin — nur `log.Println` nach stdout. Füllt sich nur bei manueller Umleitung (`> logs/x.log`) |
 
 ## Laufzeit-Daten (nicht versioniert, nur lokal)
 
@@ -72,6 +70,5 @@ Einziger Einstiegspunkt: `cmd/lab-studio/main.go`, `func main()`. Startbefehl: `
 
 ## Zusammenfassung der LÜCKEN
 
-1. `web/`, `configs/`, `scripts/`, `verification/` sind seit ihrer Anlage (Commit `9d4e3b0`) nie benutzt worden — reine Platzhalter.
-2. `logs/` hat keine tatsächliche Schreibanbindung im Code; der Vertrag in `CONTRACT.md` beschreibt eine Absicht, keine Implementierung.
-3. Kein automatisiertes Log-Rotations- oder Aufräumverfahren für `data/raplab.sqlite` — manuell zu beobachten.
+1. `logs/` hat keine tatsächliche Schreibanbindung im Code; der Vertrag in `CONTRACT.md` beschreibt eine Absicht, keine Implementierung.
+2. Kein automatisiertes Log-Rotations- oder Aufräumverfahren für `data/raplab.sqlite` — manuell zu beobachten.

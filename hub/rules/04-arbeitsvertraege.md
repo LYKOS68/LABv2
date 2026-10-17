@@ -7,7 +7,7 @@ Macht jede ausführbare Handlung ohne eigene Programmierkenntnisse bedienbar. Ro
 | Bereich | Bearbeitet von |
 |---|---|
 | Alle `.go`-Dateien (`cmd/lab-studio/*.go`) | **ausschließlich KI** |
-| Alle Markdown-Dokumente (`docs/*.md`, `README.md`) | **ausschließlich KI** |
+| Alle Markdown-Dokumente (`hub/rules/*.md`, `README.md`) | **ausschließlich KI** |
 | `.vscode/tasks.json`, `.gitignore` | **ausschließlich KI** |
 | `go.mod`/`go.sum` | **ausschließlich die `go`-CLI** (über `go get`/`go mod tidy`, von der KI ausgeführt) — nie von Hand |
 | Visuelle Freigabe der Homepage im Browser | **ausschließlich Roman** — nur er kann beurteilen, ob es „richtig aussieht" |
