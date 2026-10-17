@@ -14,14 +14,15 @@ Läuft auf `http://127.0.0.1:8090`.
 
 - Homepage (Text-Platzhalter statt Bild-Assets), Registrierung, Login, Logout, Account-Löschung — funktional getestet (siehe Check-Verlauf in der Session).
 - Passwörter via `bcrypt` gehasht, nie im Klartext gespeichert.
-- Nutzer-/Session-Daten liegen in-memory — **nicht persistent**, gehen bei Neustart verloren.
+- Nutzerdaten in SQLite (`data/raplab.sqlite`) — **persistent**, bewiesen durch Neustart-Test (siehe `docs/02-sicherheitserweiterungen-plan.md` Schritt 1). Sessions bleiben bewusst in-memory.
 
 ## Offene LÜCKEN
 
 - Siehe `docs/01-spezifikation.md` §4: exakte Hex-Farbwerte, Font-Namen, freigestellte Logo-/Signature-Assets fehlen noch (aktuell Text-Platzhalter statt Bild).
 - Keine Tests (`go test ./...` → no test files).
-- Keine Persistenz (In-Memory-Store).
-- Kein CSRF-Schutz auf den Formularen (nicht gefordert, für Produktivbetrieb nachzuholen).
+- Kein CSRF-Schutz auf den Formularen — siehe `docs/02-sicherheitserweiterungen-plan.md` Schritt 3 (geplant, noch nicht umgesetzt).
+- Kein Rate-Limiting — siehe `docs/02-sicherheitserweiterungen-plan.md` Schritt 4 (geplant, noch nicht umgesetzt).
+- Passwort-Hashing noch `bcrypt`, Umstellung auf Argon2id in Schritt 2 des Sicherheitsplans geplant.
 
 ## Verzeichnisstruktur
 

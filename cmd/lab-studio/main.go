@@ -2,16 +2,20 @@ package main
 
 import (
 	"crypto/rand"
+	"database/sql"
 	"encoding/hex"
 	"errors"
 	"html/template"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
 
 	"golang.org/x/crypto/bcrypt"
+	_ "modernc.org/sqlite"
 )
 
 type User struct {
@@ -20,16 +24,32 @@ type User struct {
 }
 
 type Store struct {
+	db       *sql.DB
 	mu       sync.Mutex
-	users    map[string]*User  // key: lowercase email
-	sessions map[string]string // token -> lowercase email
+	sessions map[string]string // token -> lowercase email, in-memory (nicht persistiert)
 }
 
-func newStore() *Store {
-	return &Store{
-		users:    make(map[string]*User),
-		sessions: make(map[string]string),
+func newStore(dbPath string) (*Store, error) {
+	if err := os.MkdirAll(filepath.Dir(dbPath), 0o700); err != nil {
+		return nil, err
 	}
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
+		return nil, err
+	}
+	if _, err := db.Exec("PRAGMA busy_timeout=5000"); err != nil {
+		return nil, err
+	}
+	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS users (
+		email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+		password_hash TEXT NOT NULL
+	)`); err != nil {
+		return nil, err
+	}
+	return &Store{db: db, sessions: make(map[string]string)}, nil
 }
 
 var (
@@ -42,28 +62,29 @@ func (s *Store) CreateUser(email, password string) error {
 	if err != nil {
 		return err
 	}
-	key := strings.ToLower(email)
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if _, exists := s.users[key]; exists {
-		return errAccountExists
+	_, err = s.db.Exec("INSERT INTO users (email, password_hash) VALUES (?, ?)", email, string(hash))
+	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			return errAccountExists
+		}
+		return err
 	}
-	s.users[key] = &User{Email: email, PasswordHash: string(hash)}
 	return nil
 }
 
 func (s *Store) Authenticate(email, password string) (*User, error) {
-	key := strings.ToLower(email)
-	s.mu.Lock()
-	u, exists := s.users[key]
-	s.mu.Unlock()
-	if !exists {
+	var storedEmail, hash string
+	err := s.db.QueryRow("SELECT email, password_hash FROM users WHERE email = ? COLLATE NOCASE", email).Scan(&storedEmail, &hash)
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, errInvalidCredentials
 	}
-	if err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(password)); err != nil {
+	if err != nil {
+		return nil, err
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)); err != nil {
 		return nil, errInvalidCredentials
 	}
-	return u, nil
+	return &User{Email: storedEmail, PasswordHash: hash}, nil
 }
 
 func (s *Store) CreateSession(email string) (string, error) {
@@ -84,10 +105,12 @@ func (s *Store) UserByToken(token string) (*User, bool) {
 	if !ok {
 		return nil, false
 	}
-	s.mu.Lock()
-	u, exists := s.users[email]
-	s.mu.Unlock()
-	return u, exists
+	var storedEmail, hash string
+	err := s.db.QueryRow("SELECT email, password_hash FROM users WHERE email = ? COLLATE NOCASE", email).Scan(&storedEmail, &hash)
+	if err != nil {
+		return nil, false
+	}
+	return &User{Email: storedEmail, PasswordHash: hash}, true
 }
 
 func (s *Store) DeleteSession(token string) {
@@ -96,16 +119,19 @@ func (s *Store) DeleteSession(token string) {
 	s.mu.Unlock()
 }
 
-func (s *Store) DeleteUser(email string) {
+func (s *Store) DeleteUser(email string) error {
 	key := strings.ToLower(email)
+	if _, err := s.db.Exec("DELETE FROM users WHERE email = ? COLLATE NOCASE", key); err != nil {
+		return err
+	}
 	s.mu.Lock()
-	delete(s.users, key)
 	for tok, e := range s.sessions {
 		if e == key {
 			delete(s.sessions, tok)
 		}
 	}
 	s.mu.Unlock()
+	return nil
 }
 
 func randomToken() (string, error) {
@@ -257,7 +283,11 @@ func render(w http.ResponseWriter, contentName string, data pageData) {
 }
 
 func main() {
-	store := newStore()
+	store, err := newStore("data/raplab.sqlite")
+	if err != nil {
+		log.Fatalf("store init failed: %v", err)
+	}
+	defer store.db.Close()
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -345,7 +375,11 @@ func main() {
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
 		}
-		store.DeleteUser(u.Email)
+		if err := store.DeleteUser(u.Email); err != nil {
+			log.Printf("delete-account error: %v", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
 		store.DeleteSession(token)
 		http.SetCookie(w, &http.Cookie{Name: "session_token", Value: "", Path: "/", MaxAge: -1})
 		http.Redirect(w, r, "/", http.StatusSeeOther)
