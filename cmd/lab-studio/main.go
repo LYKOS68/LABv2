@@ -2,9 +2,12 @@ package main
 
 import (
 	"crypto/rand"
+	"crypto/subtle"
 	"database/sql"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -14,9 +17,61 @@ import (
 	"strings"
 	"sync"
 
-	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/crypto/argon2"
 	_ "modernc.org/sqlite"
 )
+
+const (
+	argonMemoryKiB    = 19 * 1024
+	argonIterations   = 2
+	argonParallelism  = 1
+	argonSaltLen      = 16
+	argonKeyLen       = 32
+	argonMaxMemoryKiB = 1 << 20 // Obergrenze gegen ungebundenen Aufwand aus korrupten/boeswilligen Hash-Strings
+	argonMaxIterations = 10
+	argonMaxParallelism = 16
+)
+
+func hashPassword(password string) (string, error) {
+	salt := make([]byte, argonSaltLen)
+	if _, err := rand.Read(salt); err != nil {
+		return "", err
+	}
+	key := argon2.IDKey([]byte(password), salt, argonIterations, argonMemoryKiB, argonParallelism, argonKeyLen)
+	return fmt.Sprintf("$argon2id$v=%d$m=%d,t=%d,p=%d$%s$%s",
+		argon2.Version, argonMemoryKiB, argonIterations, argonParallelism,
+		base64.RawStdEncoding.EncodeToString(salt),
+		base64.RawStdEncoding.EncodeToString(key)), nil
+}
+
+func verifyPassword(encodedHash, password string) (bool, error) {
+	parts := strings.Split(encodedHash, "$")
+	if len(parts) != 6 || parts[1] != "argon2id" {
+		return false, errors.New("invalid hash format")
+	}
+	var version int
+	if _, err := fmt.Sscanf(parts[2], "v=%d", &version); err != nil || version != argon2.Version {
+		return false, errors.New("invalid or unsupported hash version")
+	}
+	var memory, iterations uint32
+	var parallelism uint8
+	if _, err := fmt.Sscanf(parts[3], "m=%d,t=%d,p=%d", &memory, &iterations, &parallelism); err != nil {
+		return false, errors.New("invalid hash parameters")
+	}
+	if memory == 0 || memory > argonMaxMemoryKiB || iterations == 0 || iterations > argonMaxIterations || parallelism == 0 || int(parallelism) > argonMaxParallelism {
+		return false, errors.New("hash parameters out of bounds")
+	}
+	salt, err := base64.RawStdEncoding.DecodeString(parts[4])
+	if err != nil || len(salt) == 0 || len(salt) > 64 {
+		return false, errors.New("invalid salt")
+	}
+	storedKey, err := base64.RawStdEncoding.DecodeString(parts[5])
+	if err != nil || len(storedKey) == 0 || len(storedKey) > 128 {
+		return false, errors.New("invalid key")
+	}
+	computedKey := argon2.IDKey([]byte(password), salt, iterations, memory, parallelism, uint32(len(storedKey)))
+	return subtle.ConstantTimeCompare(computedKey, storedKey) == 1, nil
+}
 
 type User struct {
 	Email        string
@@ -58,11 +113,11 @@ var (
 )
 
 func (s *Store) CreateUser(email, password string) error {
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	hash, err := hashPassword(password)
 	if err != nil {
 		return err
 	}
-	_, err = s.db.Exec("INSERT INTO users (email, password_hash) VALUES (?, ?)", email, string(hash))
+	_, err = s.db.Exec("INSERT INTO users (email, password_hash) VALUES (?, ?)", email, hash)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
 			return errAccountExists
@@ -81,7 +136,12 @@ func (s *Store) Authenticate(email, password string) (*User, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)); err != nil {
+	ok, err := verifyPassword(hash, password)
+	if err != nil {
+		log.Printf("verifyPassword error for %s: %v", storedEmail, err)
+		return nil, errInvalidCredentials
+	}
+	if !ok {
 		return nil, errInvalidCredentials
 	}
 	return &User{Email: storedEmail, PasswordHash: hash}, nil
