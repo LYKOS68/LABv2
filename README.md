@@ -18,8 +18,11 @@ Läuft auf `http://127.0.0.1:8090`.
 
 ## Offene LÜCKEN
 
-- Siehe `01-spezifikation.md` §4: exakte Hex-Farbwerte, Font-Namen, freigestellte Logo-/Signature-Assets fehlen noch (aktuell Text-Platzhalter statt Bild).
+- Siehe `docs/01-spezifikation.md` §4: exakte Hex-Farbwerte, Font-Namen, freigestellte Logo-/Signature-Assets fehlen noch (aktuell Text-Platzhalter statt Bild).
 - Keine Tests (`go test ./...` → no test files).
-- Keine `.vscode/tasks.json`.
 - Keine Persistenz (In-Memory-Store).
 - Kein CSRF-Schutz auf den Formularen (nicht gefordert, für Produktivbetrieb nachzuholen).
+
+## Verzeichnisstruktur
+
+Siehe `docs/CONTRACT.md` für den vollständigen Pfadvertrag.
