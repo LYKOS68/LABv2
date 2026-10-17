@@ -11,7 +11,8 @@ Verbindliche Pfad- und Schreibregeln für dieses Repository. Jede neue Datei wir
 | Skripte | `scripts/` | Wartungs-/Automatisierungsskripte | versioniert |
 | Logs | `logs/` | Laufzeit-Logs | **gitignored** |
 | Prüfprotokolle | `verification/` | Check-Ergebnisse, Smoke-Test-Records | versioniert |
-| Verträge/Governance | `docs/` | Spezifikationen, dieser Pfadvertrag | versioniert |
+| Verträge/Governance | `docs/` | Spezifikationen, dieser Pfadvertrag — **eingefroren**, nicht ohne neue Freigabe verhandelbar | versioniert |
+| Ideen/Drafts/Agent-Koordination | `hub/` | unfertiges Denken, Agent-zu-Agent-Nachrichten (`chatroom.jsonl`) — **nicht eingefroren**, kein Bauauftrag | versioniert |
 | Startsteuerung | `.vscode/tasks.json` | VS-Code-Task für Serverstart | versioniert |
 
 ## Begründete Abweichungen von der wörtlichen Vorgabe
@@ -27,6 +28,14 @@ BAUSTEIN: web/, configs/, data/, scripts/, logs/, verification/, docs/ | AUSLÖS
 ```
 
 Diese Ordner enthalten aktuell keinen Inhalt außer `docs/` und `cmd/`. Das ist eine bewusste Vorrats-Entscheidung, keine regelkonforme Notwendigkeit nach §6.3 — festgehalten hier, damit das bei einer späteren Prüfung nachvollziehbar bleibt.
+
+## `docs/` vs. `hub/` — der entscheidende Unterschied
+
+`docs/` = eingefroren. Jede Datei dort beschreibt einen geprüften, abgeschlossenen Stand (Spezifikation, Sicherheitsplan, Pfadvertrag). Änderung nur durch neuen, benannten Schritt.
+
+`hub/` = nicht eingefroren. `hub/drafts/` ist Brainstorming — **kein** Bauauftrag, auch wenn es wie einer aussieht. Eine KI, die eine Datei aus `hub/drafts/` liest, darf daraus nicht ableiten, dass etwas umzusetzen ist, ohne dass Roman das ausdrücklich bestätigt. `hub/chatroom.jsonl` ist Agent-zu-Agent-Kommunikation, append-only — siehe `hub/README.md` und `hub/agent-docs/00-orientierung.md`.
+
+BAUSTEIN: hub/ (drafts/, agent-docs/, chatroom.jsonl, chatroom.schema.json) | AUSLÖSER: keiner von a/b/c, explizite Entscheidung von Roman | BELEG: Bedarf an einem Ort für unfertiges Denken + Agent-Koordination, getrennt von eingefrorenen `docs/`-Inhalten, damit keine KI ein Draft für einen Auftrag hält | INVARIANTE: kein Inhalt aus `hub/drafts/` wird umgesetzt ohne explizite Freigabe
 
 ## Innerer Pfadvertrag: `cmd/lab-studio/`
 
