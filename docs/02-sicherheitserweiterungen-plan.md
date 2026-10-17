@@ -74,4 +74,4 @@ BAUSTEIN: In-Memory-Rate-Limiter | AUSLÖSER: b | BELEG: unbegrenzte Login-Versu
 
 ---
 
-**Status:** Plan festgehalten, Umsetzung folgt einzeln, Schritt 1 zuerst.
+**Status:** Alle vier Schritte umgesetzt und einzeln eingefroren (Commits `0c27703`, `1421d67`, `f3b6d94`, Rate-Limiting-Commit s. `git log`). Jeder Schritt wurde gegen sein eigenes Prüfverfahren verifiziert, bevor der nächste begann.

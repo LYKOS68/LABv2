@@ -2,6 +2,38 @@ package main
 
 import "testing"
 
+func TestRateLimiterAllowsUpToLimitThenBlocks(t *testing.T) {
+	rl := newRateLimiter()
+	for i := 0; i < rateLimitAttempts; i++ {
+		allowed, _ := rl.Allow("test-key")
+		if !allowed {
+			t.Fatalf("attempt %d: expected allowed, got blocked", i+1)
+		}
+	}
+	allowed, retryAfter := rl.Allow("test-key")
+	if allowed {
+		t.Fatal("attempt beyond limit was allowed")
+	}
+	if retryAfter <= 0 {
+		t.Fatalf("expected positive retryAfter, got %v", retryAfter)
+	}
+}
+
+func TestRateLimiterKeysAreIndependent(t *testing.T) {
+	rl := newRateLimiter()
+	for i := 0; i < rateLimitAttempts; i++ {
+		if allowed, _ := rl.Allow("key-a"); !allowed {
+			t.Fatalf("key-a attempt %d unexpectedly blocked", i+1)
+		}
+	}
+	if allowed, _ := rl.Allow("key-a"); allowed {
+		t.Fatal("key-a should be blocked after exhausting its limit")
+	}
+	if allowed, _ := rl.Allow("key-b"); !allowed {
+		t.Fatal("key-b should be unaffected by key-a's limit")
+	}
+}
+
 func TestHashAndVerifyPasswordRoundTrip(t *testing.T) {
 	hash, err := hashPassword("sicheres1")
 	if err != nil {
