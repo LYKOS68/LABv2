@@ -1,6 +1,6 @@
 # hub/brand/
 
-Marken-Originale und Design-Vorlagen von RAP-LAB. Regeln und Einsatz: `hub/rules/12-brand-spec.md`.
+Marken-Originale und Design-Vorlagen von RAP-LAB. 
 
 | Ordner | Inhalt | Regel |
 |---|---|---|

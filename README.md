@@ -1,6 +1,6 @@
 # RAP-LAB
 
-**Musik passiert nicht nur im Studio.** RAP-LAB holt an einen Ort, was sonst über Handy-Notizen, Instagram, Discord und 40 Chats verteilt ist — von der ersten Line bis zur Zusammenarbeit. Zweck und Ausbauplan: `hub/rules/13-zweck-und-vision.md`.
+**Musik passiert nicht nur im Studio.** RAP-LAB holt an einen Ort, was sonst über Handy-Notizen, Instagram, Discord und 40 Chats verteilt ist — von der ersten Line bis zur Zusammenarbeit. Zweck und Ausbauplan: `hub/rules/01-spezifikation.md`, Abschnitt 13.
 
 Eine Go-Webanwendung, ein Programm, eine SQLite-Datenbank. Kein JavaScript-Framework, kein Build-Schritt.
 
@@ -37,7 +37,7 @@ Ohne Mail-Dienst stehen Bestätigungs- und Passwort-Links im **Server-Konsolenfe
 
 ## Marke
 
-Farben, Schrift, Logos und ihre Regeln: `hub/rules/12-brand-spec.md`.
+Farben, Schrift, Logos und ihre Regeln: `hub/rules/01-spezifikation.md`, Abschnitt 12.
 
 - Farben: Schwarz, Weiß, Neongrün `#ACE182`, Gold `#C2B198`, Braun `#543824` — einmal in `cmd/lab-studio/web/static/brand.css`
 - Schrift: Manrope (lokal, SIL Open Font License)
@@ -58,18 +58,19 @@ cmd/lab-studio/        das Programm (ein Go-Paket, nach Themen in Dateien getren
   web/                 Seiten, CSS, JavaScript, Bilder, Schrift — ins Programm eingebaut
 data/                  Datenbank, entsteht beim ersten Start, nie auf GitHub
 hub/                   alles, was kein Programm ist
-  rules/               Pläne, Verträge, Spezifikationen (nummeriert, werden nicht überschrieben)
+  rules/               CONTRACT.md + 01-spezifikation.md (alle Pläne in einem Dokument)
   brand/               Marken-Originale und Design-Vorlagen
   drafts/              Ideen ohne Bauauftrag
   agent-docs/          Einstieg für jede KI, die hier arbeitet
+  user/                nur für Roman: Prompts zum Kopieren (YAML-Gruppen, append-only)
 ```
 
-Verbindlicher Pfadvertrag: `hub/rules/CONTRACT.md`. Datei-für-Datei-Inventar: `hub/rules/14-verzeichnisinventar.md`. Wer was bedient: `hub/rules/04-arbeitsvertraege.md`.
+Verbindlicher Pfadvertrag: `hub/rules/CONTRACT.md`. Alle Pläne, Inventar, Marke und Vision in einem Dokument: `hub/rules/01-spezifikation.md` (Abschnitte nach alter Nummer).
 
 ## Offen
 
-- **LAB-CONNECT** speichert noch nichts: Anzeigen in der Datenbank, echte Filter nach Ort, Bilder, Nachrichten, Profile (`hub/rules/11-lab-connect-mvp-plan.md`)
-- **LAB-STUDIO**: Songs löschen/umbenennen, Released/Drafts, Reimbuch, Relatable Bars, 1-2-1-2-Baukasten (`hub/rules/13-zweck-und-vision.md` §5)
+- **LAB-CONNECT** speichert noch nichts: Anzeigen in der Datenbank, echte Filter nach Ort, Bilder, Nachrichten, Profile (`hub/rules/01-spezifikation.md`, Abschnitt 11)
+- **LAB-STUDIO**: Songs löschen/umbenennen, Released/Drafts, Reimbuch, Relatable Bars, 1-2-1-2-Baukasten (`hub/rules/01-spezifikation.md`, Abschnitt 13 §5)
 - **Online gehen**: Server-Anbieter, Domain, Mail-Dienst
-- Offene Fragen an Roman: `12-brand-spec.md` §6 und `13-zweck-und-vision.md` §7
+- Offene Fragen an Roman: `hub/rules/01-spezifikation.md`, Abschnitt 12 §6 und 13 §7
 - `logs/` hat keine Schreibanbindung (Server schreibt nur ins Konsolenfenster)

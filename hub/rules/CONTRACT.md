@@ -32,6 +32,8 @@ Statische Assets (`web/`), handgepflegte Settings (`configs/`), Skripte, die Rom
 
 `hub/drafts/`, `hub/chatroom.jsonl`, `hub/agent-docs/` = nicht eingefroren. Insbesondere `hub/drafts/`: **kein** Bauauftrag, auch wenn es wie einer aussieht. Details in `hub/README.md`.
 
+`hub/user/` = Subwurzel nur für Roman (nicht für CLI, nicht für Runtime): Texte, die er selbst kopiert und einsetzt. One-Shot-Prompts liegen gruppiert als `prompts-<gruppe>.yaml`, nicht als eine Datei pro Prompt. Jede Gruppe ist **append-only** nach den Regeln in `hub/user/prompt-vorlage.yaml`: Ein ausgefüllter Eintrag wird nie geändert, eine Änderung ist eine neue Version am Ende. Eine Gruppendatei entsteht erst mit ihrem ersten echten Prompt.
+
 ## Innerer Pfadvertrag: `cmd/lab-studio/`
 
 Jede Datei gehört zu genau einer Funktionsachse, alle im selben Package `main`:
