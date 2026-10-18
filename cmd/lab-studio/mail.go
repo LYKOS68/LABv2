@@ -37,16 +37,27 @@ func newMailerFromEnv() *Mailer {
 }
 
 func (m *Mailer) SendVerificationLink(email, token string) error {
-	link := m.baseURL + "/verify?token=" + url.QueryEscape(token)
+	return m.sendLink(email, "E-Mail-Adresse bestaetigen", "/verify",
+		"bitte bestaetige deine E-Mail-Adresse fuer RAP-LAB:",
+		"Der Link ist 24 Stunden gueltig. Wenn du dich nicht registriert hast, ignoriere diese Mail.", token)
+}
+
+func (m *Mailer) SendPasswordResetLink(email, token string) error {
+	return m.sendLink(email, "Passwort zuruecksetzen", "/reset-password",
+		"ueber diesen Link kannst du ein neues Passwort fuer RAP-LAB setzen:",
+		"Der Link ist 1 Stunde gueltig. Wenn du das nicht angefordert hast, ignoriere diese Mail - dein Passwort bleibt unveraendert.", token)
+}
+
+func (m *Mailer) sendLink(email, subject, path, intro, outro, token string) error {
+	link := m.baseURL + path + "?token=" + url.QueryEscape(token)
 	if m.host == "" {
-		log.Printf("[mail] kein SMTP_HOST gesetzt - Bestaetigungslink fuer %s: %s", email, link)
+		log.Printf("[mail] kein SMTP_HOST gesetzt - %s fuer %s: %s", subject, email, link)
 		return nil
 	}
-	msg := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: RAP-LAB: E-Mail-Adresse bestaetigen\r\n"+
+	msg := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: RAP-LAB: %s\r\n"+
 		"Content-Type: text/plain; charset=utf-8\r\n\r\n"+
-		"Hallo,\r\n\r\nbitte bestaetige deine E-Mail-Adresse fuer RAP-LAB:\r\n\r\n%s\r\n\r\n"+
-		"Der Link ist 24 Stunden gueltig. Wenn du dich nicht registriert hast, ignoriere diese Mail.\r\n",
-		m.from, email, link)
+		"Hallo,\r\n\r\n%s\r\n\r\n%s\r\n\r\n%s\r\n",
+		m.from, email, subject, intro, link, outro)
 	var auth smtp.Auth
 	if m.user != "" {
 		auth = smtp.PlainAuth("", m.user, m.pass, m.host)

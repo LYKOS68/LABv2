@@ -12,6 +12,10 @@ func validateRegistration(email, password, confirm string) string {
 	if email == "" || !emailRe.MatchString(email) {
 		return "Bitte eine gueltige E-Mail-Adresse angeben."
 	}
+	return validateNewPassword(password, confirm)
+}
+
+func validateNewPassword(password, confirm string) string {
 	if len(password) < 8 {
 		return "Passwort muss mindestens 8 Zeichen haben."
 	}

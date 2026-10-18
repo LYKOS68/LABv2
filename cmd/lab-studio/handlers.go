@@ -45,6 +45,70 @@ func sendVerification(store *Store, mailer *Mailer, email string) {
 	}
 }
 
+// forgotPasswordHandler antwortet immer gleich, egal ob die E-Mail existiert.
+func forgotPasswordHandler(store *Store, limiter *RateLimiter, mailer *Mailer) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			render(w, r, store, "content-forgot", pageData{})
+			return
+		}
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if !checkCSRF(w, r, store) {
+			return
+		}
+		if !allowOrTooManyRequests(w, limiter, "forgot:"+clientIP(r)) {
+			return
+		}
+		email := r.FormValue("email")
+		if store.AccountExists(email) {
+			token, err := store.CreatePasswordReset(email)
+			if err != nil {
+				log.Printf("create password reset for %s: %v", email, err)
+			} else if err := mailer.SendPasswordResetLink(email, token); err != nil {
+				log.Printf("send password reset mail to %s: %v", email, err)
+			}
+		}
+		render(w, r, store, "content-forgot-sent", pageData{Email: email})
+	}
+}
+
+// resetPasswordHandler zeigt beim GET nur das Formular; der Token wird erst beim POST
+// mit gueltigem neuem Passwort verbraucht (Mail-Scanner oeffnen Links vorab).
+func resetPasswordHandler(store *Store, limiter *RateLimiter) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			render(w, r, store, "content-reset", pageData{Token: r.URL.Query().Get("token")})
+			return
+		}
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if !checkCSRF(w, r, store) {
+			return
+		}
+		if !allowOrTooManyRequests(w, limiter, "reset:"+clientIP(r)) {
+			return
+		}
+		token := r.FormValue("token")
+		if msg := validateNewPassword(r.FormValue("password"), r.FormValue("confirm")); msg != "" {
+			render(w, r, store, "content-reset", pageData{Error: msg, Token: token})
+			return
+		}
+		if err := store.ResetPassword(token, r.FormValue("password")); err != nil {
+			if err != errInvalidToken {
+				log.Printf("reset password: %v", err)
+			}
+			render(w, r, store, "content-reset-result", pageData{Error: errInvalidToken.Error()})
+			return
+		}
+		render(w, r, store, "content-reset-result", pageData{})
+	}
+}
+
 func registerHandler(store *Store, limiter *RateLimiter, mailer *Mailer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {

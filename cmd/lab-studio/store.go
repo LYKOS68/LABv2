@@ -51,12 +51,14 @@ func newStore(dbPath string) (*Store, error) {
 	if err := migrateVerifiedColumn(db); err != nil {
 		return nil, err
 	}
-	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS email_verifications (
-		token_hash TEXT PRIMARY KEY,
-		email TEXT NOT NULL COLLATE NOCASE,
-		expires_at INTEGER NOT NULL
-	)`); err != nil {
-		return nil, err
+	for _, table := range []string{verificationTable, resetTable} {
+		if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS ` + table + ` (
+			token_hash TEXT PRIMARY KEY,
+			email TEXT NOT NULL COLLATE NOCASE,
+			expires_at INTEGER NOT NULL
+		)`); err != nil {
+			return nil, err
+		}
 	}
 	return &Store{db: db, sessions: make(map[string]string), csrf: make(map[string]csrfEntry)}, nil
 }
@@ -78,7 +80,13 @@ func migrateVerifiedColumn(db *sql.DB) error {
 	return err
 }
 
-const verificationTTL = 24 * time.Hour
+// Tabellen fuer Einmal-Links per Mail. Nur diese festen Namen gehen in SQL-Strings ein.
+const (
+	verificationTable = "email_verifications"
+	resetTable        = "password_resets"
+	verificationTTL   = 24 * time.Hour
+	resetTTL          = 1 * time.Hour
+)
 
 var (
 	errAccountExists      = errors.New("Konto mit dieser E-Mail existiert bereits.")
@@ -127,41 +135,80 @@ func (s *Store) Authenticate(email, password string) (*User, error) {
 	return &User{Email: storedEmail, PasswordHash: hash}, nil
 }
 
-// CreateVerification erzeugt einen neuen Bestaetigungs-Token fuer email und ersetzt aeltere.
+// createToken erzeugt einen Einmal-Token fuer email in table und ersetzt aeltere derselben Adresse.
 // In der DB liegt nur der SHA-256-Hash; der Klartext-Token geht ausschliesslich in den Link.
-func (s *Store) CreateVerification(email string) (string, error) {
+func (s *Store) createToken(table, email string, ttl time.Duration) (string, error) {
 	token, err := randomToken()
 	if err != nil {
 		return "", err
 	}
 	now := time.Now().Unix()
-	if _, err := s.db.Exec("DELETE FROM email_verifications WHERE email = ? COLLATE NOCASE OR expires_at <= ?", email, now); err != nil {
+	if _, err := s.db.Exec("DELETE FROM "+table+" WHERE email = ? COLLATE NOCASE OR expires_at <= ?", email, now); err != nil {
 		return "", err
 	}
-	_, err = s.db.Exec("INSERT INTO email_verifications (token_hash, email, expires_at) VALUES (?, ?, ?)",
-		hashToken(token), email, time.Now().Add(verificationTTL).Unix())
+	_, err = s.db.Exec("INSERT INTO "+table+" (token_hash, email, expires_at) VALUES (?, ?, ?)",
+		hashToken(token), email, time.Now().Add(ttl).Unix())
 	if err != nil {
 		return "", err
 	}
 	return token, nil
 }
 
-// VerifyEmail loest einen Token genau einmal ein und markiert das Konto als bestaetigt.
-func (s *Store) VerifyEmail(token string) error {
+// consumeToken loest einen Token aus table genau einmal ein und liefert die zugehoerige E-Mail.
+func (s *Store) consumeToken(table, token string) (string, error) {
 	if token == "" {
-		return errInvalidToken
+		return "", errInvalidToken
 	}
 	var email string
-	err := s.db.QueryRow("DELETE FROM email_verifications WHERE token_hash = ? AND expires_at > ? RETURNING email",
+	err := s.db.QueryRow("DELETE FROM "+table+" WHERE token_hash = ? AND expires_at > ? RETURNING email",
 		hashToken(token), time.Now().Unix()).Scan(&email)
 	if errors.Is(err, sql.ErrNoRows) {
-		return errInvalidToken
+		return "", errInvalidToken
 	}
+	return email, err
+}
+
+func (s *Store) CreateVerification(email string) (string, error) {
+	return s.createToken(verificationTable, email, verificationTTL)
+}
+
+// VerifyEmail loest einen Token genau einmal ein und markiert das Konto als bestaetigt.
+func (s *Store) VerifyEmail(token string) error {
+	email, err := s.consumeToken(verificationTable, token)
 	if err != nil {
 		return err
 	}
 	_, err = s.db.Exec("UPDATE users SET verified = 1 WHERE email = ? COLLATE NOCASE", email)
 	return err
+}
+
+func (s *Store) CreatePasswordReset(email string) (string, error) {
+	return s.createToken(resetTable, email, resetTTL)
+}
+
+// ResetPassword setzt per Einmal-Token ein neues Passwort, markiert das Konto als bestaetigt
+// (der Link beweist den Postfach-Besitz) und beendet alle offenen Sitzungen des Kontos.
+func (s *Store) ResetPassword(token, newPassword string) error {
+	hash, err := hashPassword(newPassword)
+	if err != nil {
+		return err
+	}
+	email, err := s.consumeToken(resetTable, token)
+	if err != nil {
+		return err
+	}
+	if _, err := s.db.Exec("UPDATE users SET password_hash = ?, verified = 1 WHERE email = ? COLLATE NOCASE", hash, email); err != nil {
+		return err
+	}
+	s.deleteSessionsOf(email)
+	return nil
+}
+
+// AccountExists meldet, ob ein Konto mit dieser E-Mail existiert.
+func (s *Store) AccountExists(email string) bool {
+	var n int
+	err := s.db.QueryRow("SELECT COUNT(*) FROM users WHERE email = ? COLLATE NOCASE", email).Scan(&n)
+	return err == nil && n > 0
 }
 
 // IsUnverified meldet, ob ein Konto mit dieser E-Mail existiert und noch unbestaetigt ist.
@@ -213,9 +260,17 @@ func (s *Store) DeleteUser(email string) error {
 	if _, err := s.db.Exec("DELETE FROM users WHERE email = ? COLLATE NOCASE", key); err != nil {
 		return err
 	}
-	if _, err := s.db.Exec("DELETE FROM email_verifications WHERE email = ? COLLATE NOCASE", key); err != nil {
-		return err
+	for _, table := range []string{verificationTable, resetTable} {
+		if _, err := s.db.Exec("DELETE FROM "+table+" WHERE email = ? COLLATE NOCASE", key); err != nil {
+			return err
+		}
 	}
+	s.deleteSessionsOf(key)
+	return nil
+}
+
+func (s *Store) deleteSessionsOf(email string) {
+	key := strings.ToLower(email)
 	s.mu.Lock()
 	for tok, e := range s.sessions {
 		if e == key {
@@ -223,7 +278,6 @@ func (s *Store) DeleteUser(email string) error {
 		}
 	}
 	s.mu.Unlock()
-	return nil
 }
 
 func randomToken() (string, error) {

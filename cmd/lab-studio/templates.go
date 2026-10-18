@@ -112,7 +112,49 @@ Oder du hoerst irgendwann auf, deinen Musikprozess aus Einzelteilen zusammenzuba
   <button type="submit">Bestaetigungslink erneut senden</button>
 </form>
 {{end}}
+<p class="switch"><a href="/forgot-password">Passwort vergessen?</a></p>
 <p class="switch">Noch kein Konto? <a href="/register">Registrieren</a></p>
+{{end}}
+
+{{define "content-forgot"}}
+<h1>Passwort vergessen</h1>
+<p class="switch">Gib deine E-Mail-Adresse ein. Wir schicken dir einen Link, mit dem du ein neues Passwort setzen kannst.</p>
+<form method="post" action="/forgot-password">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+  <input type="email" name="email" placeholder="E-Mail" required>
+  <button type="submit">Link anfordern</button>
+</form>
+<p class="switch"><a href="/login">Zurueck zur Anmeldung</a></p>
+{{end}}
+
+{{define "content-forgot-sent"}}
+<h1>Passwort vergessen</h1>
+<p class="ok">Falls ein Konto mit {{.Email}} existiert, haben wir dir einen Link geschickt.</p>
+<p class="switch">Der Link ist 1 Stunde gueltig.</p>
+<p class="switch"><a href="/login">Zur Anmeldung</a></p>
+{{end}}
+
+{{define "content-reset"}}
+<h1>Neues Passwort</h1>
+{{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+<form method="post" action="/reset-password">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+  <input type="hidden" name="token" value="{{.Token}}">
+  <input type="password" name="password" placeholder="Neues Passwort (min. 8 Zeichen)" required>
+  <input type="password" name="confirm" placeholder="Passwort wiederholen" required>
+  <button type="submit">Passwort speichern</button>
+</form>
+{{end}}
+
+{{define "content-reset-result"}}
+<h1>Neues Passwort</h1>
+{{if .Error}}
+<p class="error">{{.Error}}</p>
+<p class="switch"><a href="/forgot-password">Neuen Link anfordern</a></p>
+{{else}}
+<p class="ok">Dein Passwort wurde geaendert.</p>
+<p class="switch"><a href="/login">Jetzt anmelden</a></p>
+{{end}}
 {{end}}
 
 {{define "content-verify-sent"}}
@@ -140,6 +182,7 @@ type pageData struct {
 	Error      string
 	CSRFToken  string
 	ShowResend bool
+	Token      string
 }
 
 func render(w http.ResponseWriter, r *http.Request, store *Store, contentName string, data pageData) {

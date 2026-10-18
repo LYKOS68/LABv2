@@ -17,25 +17,107 @@ import (
 	"time"
 )
 
-func TestNavShowsOnlyAnmeldenAndLoginLinksToRegister(t *testing.T) {
-	store := newTestStore(t)
+// --- Test-Browser: spricht ueber HTTP mit einem Testserver -------------------------------
 
-	home := httptest.NewRecorder()
-	homeHandler(store)(home, httptest.NewRequest("GET", "/", nil))
-	nav := home.Body.String()
-	nav = nav[strings.Index(nav, "<nav>"):strings.Index(nav, "</nav>")]
-	if !strings.Contains(nav, `href="/login">Anmelden<`) {
-		t.Error("nav: missing Anmelden link to /login")
-	}
-	if strings.Contains(nav, "/register") || strings.Contains(nav, "Login<") {
-		t.Errorf("nav: should only show Anmelden, got %q", nav)
-	}
+type browser struct {
+	t      *testing.T
+	base   string
+	client *http.Client
+	mail   *bytes.Buffer // Mailer ohne SMTP_HOST loggt die Links hierher
+}
 
-	login := httptest.NewRecorder()
-	loginHandler(store, newRateLimiter())(login, httptest.NewRequest("GET", "/login", nil))
-	if !strings.Contains(login.Body.String(), `href="/register">Registrieren<`) {
-		t.Error("login page: missing Registrieren link")
+func newBrowser(t *testing.T, store *Store) *browser {
+	t.Helper()
+	mailer := &Mailer{baseURL: "http://test"}
+	srv := httptest.NewServer(newMux(store, newRateLimiter(), mailer))
+	t.Cleanup(srv.Close)
+
+	mail := &bytes.Buffer{}
+	log.SetOutput(mail)
+	t.Cleanup(func() { log.SetOutput(os.Stderr) })
+
+	jar, _ := cookiejar.New(nil)
+	return &browser{t: t, base: srv.URL, client: &http.Client{Jar: jar}, mail: mail}
+}
+
+func (b *browser) get(path string) string {
+	b.t.Helper()
+	resp, err := b.client.Get(b.base + path)
+	if err != nil {
+		b.t.Fatalf("GET %s: %v", path, err)
 	}
+	return readBody(resp)
+}
+
+// submit oeffnet formPage (dort steht das CSRF-Token) und schickt das Formular an action.
+func (b *browser) submit(formPage, action string, form url.Values) string {
+	b.t.Helper()
+	form.Set("csrf_token", csrfTokenIn(b.t, b.get(formPage)))
+	resp, err := b.client.PostForm(b.base+action, form)
+	if err != nil {
+		b.t.Fatalf("POST %s: %v", action, err)
+	}
+	return readBody(resp)
+}
+
+// mailedLink liefert den zuletzt verschickten Link zu path (z.B. "/verify") und seinen Token.
+func (b *browser) mailedLink(path string) (link, token string) {
+	b.t.Helper()
+	re := regexp.MustCompile(`http://test(` + regexp.QuoteMeta(path) + `\?token=([0-9a-f]+))`)
+	found := re.FindAllStringSubmatch(b.mail.String(), -1)
+	if len(found) == 0 {
+		b.t.Fatalf("no %s link was mailed", path)
+	}
+	last := found[len(found)-1]
+	return last[1], last[2]
+}
+
+func readBody(resp *http.Response) string {
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	return string(body)
+}
+
+var csrfFieldRe = regexp.MustCompile(`name="csrf_token" value="([0-9a-f]+)"`)
+
+func csrfTokenIn(t *testing.T, page string) string {
+	t.Helper()
+	m := csrfFieldRe.FindStringSubmatch(page)
+	if m == nil {
+		t.Fatal("page has no csrf token")
+	}
+	return m[1]
+}
+
+func expectContains(t *testing.T, page, want string) {
+	t.Helper()
+	if !strings.Contains(page, want) {
+		t.Fatalf("expected %q in page:\n%s", want, page)
+	}
+}
+
+func expectMissing(t *testing.T, page, unwanted string) {
+	t.Helper()
+	if strings.Contains(page, unwanted) {
+		t.Fatalf("did not expect %q in page:\n%s", unwanted, page)
+	}
+}
+
+// --- Navigation ---------------------------------------------------------------------------
+
+func TestNavShowsOnlyAnmelden(t *testing.T) {
+	web := newBrowser(t, newTestStore(t))
+	home := web.get("/")
+	nav := home[strings.Index(home, "<nav>"):strings.Index(home, "</nav>")]
+
+	expectContains(t, nav, `href="/login">Anmelden<`)
+	expectMissing(t, nav, "/register")
+	expectMissing(t, nav, "Login<")
+}
+
+func TestLoginPageLinksToRegister(t *testing.T) {
+	web := newBrowser(t, newTestStore(t))
+	expectContains(t, web.get("/login"), `href="/register">Registrieren<`)
 }
 
 func newTestStore(t *testing.T) *Store {
@@ -165,74 +247,141 @@ func TestMigrationMarksExistingAccountsVerified(t *testing.T) {
 	}
 }
 
-// Ende-zu-Ende ueber HTTP: Registrieren -> Login abgelehnt -> Link aus Konsolen-Log oeffnen -> Login klappt.
-func TestRegistrationFlowRequiresEmailLink(t *testing.T) {
-	store := newTestStore(t)
-	limiter := newRateLimiter()
-	mailer := &Mailer{baseURL: "http://test"}
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", homeHandler(store))
-	mux.HandleFunc("/register", registerHandler(store, limiter, mailer))
-	mux.HandleFunc("/login", loginHandler(store, limiter))
-	mux.HandleFunc("/verify", verifyHandler(store))
-	srv := httptest.NewServer(mux)
-	defer srv.Close()
-
-	var logBuf bytes.Buffer
-	log.SetOutput(&logBuf)
-	defer log.SetOutput(os.Stderr)
-
-	jar, _ := cookiejar.New(nil)
-	client := &http.Client{Jar: jar}
-	tokenRe := regexp.MustCompile(`name="csrf_token" value="([0-9a-f]+)"`)
-	post := func(path string, form url.Values) string {
-		t.Helper()
-		page, err := client.Get(srv.URL + path)
-		if err != nil {
-			t.Fatalf("GET %s: %v", path, err)
-		}
-		body, _ := io.ReadAll(page.Body)
-		page.Body.Close()
-		m := tokenRe.FindSubmatch(body)
-		if m == nil {
-			t.Fatalf("no csrf token on %s", path)
-		}
-		form.Set("csrf_token", string(m[1]))
-		resp, err := client.PostForm(srv.URL+path, form)
-		if err != nil {
-			t.Fatalf("POST %s: %v", path, err)
-		}
-		defer resp.Body.Close()
-		b, _ := io.ReadAll(resp.Body)
-		return string(b)
-	}
+// Ende-zu-Ende: Registrieren -> Login abgelehnt -> Link aus der Mail oeffnen -> Login klappt.
+func TestRegistrationNeedsEmailLink(t *testing.T) {
+	web := newBrowser(t, newTestStore(t))
 	login := url.Values{"email": {"neu@example.com"}, "password": {"sicheres1"}}
+	register := url.Values{"email": {"neu@example.com"}, "password": {"sicheres1"}, "confirm": {"sicheres1"}}
 
-	body := post("/register", url.Values{"email": {"neu@example.com"}, "password": {"sicheres1"}, "confirm": {"sicheres1"}})
-	if !strings.Contains(body, "Bestaetigungslink an neu@example.com") {
-		t.Fatalf("register: expected verify-sent page, got %q", body)
-	}
-	if body := post("/login", login); !strings.Contains(body, errNotVerified.Error()) || !strings.Contains(body, "/resend-verification") {
-		t.Fatal("login before verification: expected rejection with resend button")
-	}
+	page := web.submit("/register", "/register", register)
+	expectContains(t, page, "Bestaetigungslink an neu@example.com")
 
-	link := regexp.MustCompile(`http://test(/verify\?token=[0-9a-f]+)`).FindStringSubmatch(logBuf.String())
-	if link == nil {
-		t.Fatalf("no verification link in log: %q", logBuf.String())
+	page = web.submit("/login", "/login", login)
+	expectContains(t, page, errNotVerified.Error())
+	expectContains(t, page, "/resend-verification")
+
+	link, _ := web.mailedLink("/verify")
+	expectContains(t, web.get(link), "ist bestaetigt")
+
+	page = web.submit("/login", "/login", login)
+	expectContains(t, page, "Angemeldet als neu@example.com")
+}
+
+func newVerifiedUser(t *testing.T, store *Store, email, password string) {
+	t.Helper()
+	if err := store.CreateUser(email, password); err != nil {
+		t.Fatalf("CreateUser: %v", err)
 	}
-	resp, err := client.Get(srv.URL + link[1])
+	token, _ := store.CreateVerification(email)
+	if err := store.VerifyEmail(token); err != nil {
+		t.Fatalf("VerifyEmail: %v", err)
+	}
+}
+
+func TestResetPasswordRejectsInvalidTokens(t *testing.T) {
+	store := newTestStore(t)
+	newVerifiedUser(t, store, "a@example.com", "altpasswort")
+	token, err := store.CreatePasswordReset("a@example.com")
 	if err != nil {
-		t.Fatalf("GET verify: %v", err)
+		t.Fatalf("CreatePasswordReset: %v", err)
 	}
-	b, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
-	if !strings.Contains(string(b), "ist bestaetigt") {
-		t.Fatalf("verify: expected success page, got %q", b)
-	}
+	verifyToken, _ := store.CreateVerification("a@example.com")
 
-	if body := post("/login", login); !strings.Contains(body, "Angemeldet als neu@example.com") {
-		t.Fatalf("login after verification: expected logged-in home, got %q", body)
+	// Bestaetigungs-Token darf nicht als Reset-Token durchgehen (getrennte Tabellen).
+	for _, bad := range []string{"", "falsch", token + "x", hashToken(token), verifyToken} {
+		if err := store.ResetPassword(bad, "neuespasswort"); err != errInvalidToken {
+			t.Errorf("token %q: expected errInvalidToken, got %v", bad, err)
+		}
 	}
+	if _, err := store.db.Exec("UPDATE password_resets SET expires_at = ?", time.Now().Add(-time.Minute).Unix()); err != nil {
+		t.Fatalf("expire token: %v", err)
+	}
+	if err := store.ResetPassword(token, "neuespasswort"); err != errInvalidToken {
+		t.Fatalf("expired token: expected errInvalidToken, got %v", err)
+	}
+	if _, err := store.Authenticate("a@example.com", "altpasswort"); err != nil {
+		t.Fatalf("old password must still work after rejected resets: %v", err)
+	}
+}
+
+func TestResetPasswordWorksOnceAndEndsSessions(t *testing.T) {
+	store := newTestStore(t)
+	newVerifiedUser(t, store, "a@example.com", "altpasswort")
+	session, _ := store.CreateSession("a@example.com")
+	old, _ := store.CreatePasswordReset("a@example.com")
+	token, _ := store.CreatePasswordReset("a@example.com")
+
+	if err := store.ResetPassword(old, "neuespasswort"); err != errInvalidToken {
+		t.Fatalf("superseded token: expected errInvalidToken, got %v", err)
+	}
+	if err := store.ResetPassword(token, "neuespasswort"); err != nil {
+		t.Fatalf("ResetPassword: %v", err)
+	}
+	if _, err := store.Authenticate("a@example.com", "altpasswort"); err != errInvalidCredentials {
+		t.Fatalf("old password: expected errInvalidCredentials, got %v", err)
+	}
+	if _, err := store.Authenticate("a@example.com", "neuespasswort"); err != nil {
+		t.Fatalf("new password: %v", err)
+	}
+	if _, ok := store.UserByToken(session); ok {
+		t.Fatal("session from before the reset is still active")
+	}
+	if err := store.ResetPassword(token, "drittespasswort"); err != errInvalidToken {
+		t.Fatalf("reused token: expected errInvalidToken, got %v", err)
+	}
+}
+
+func TestResetPasswordVerifiesUnverifiedAccount(t *testing.T) {
+	store := newTestStore(t)
+	if err := store.CreateUser("a@example.com", "altpasswort"); err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	token, _ := store.CreatePasswordReset("a@example.com")
+	if err := store.ResetPassword(token, "neuespasswort"); err != nil {
+		t.Fatalf("ResetPassword: %v", err)
+	}
+	if _, err := store.Authenticate("a@example.com", "neuespasswort"); err != nil {
+		t.Fatalf("login after reset of unverified account: %v", err)
+	}
+}
+
+func TestLoginPageLinksToForgotPassword(t *testing.T) {
+	web := newBrowser(t, newTestStore(t))
+	expectContains(t, web.get("/login"), `href="/forgot-password"`)
+}
+
+// Fremde Adresse: gleiche Antwort wie bei echter, aber es geht keine Mail raus.
+func TestForgotPasswordHidesUnknownEmail(t *testing.T) {
+	store := newTestStore(t)
+	newVerifiedUser(t, store, "a@example.com", "altpasswort")
+	web := newBrowser(t, store)
+
+	known := web.submit("/forgot-password", "/forgot-password", url.Values{"email": {"a@example.com"}})
+	unknown := web.submit("/forgot-password", "/forgot-password", url.Values{"email": {"b@example.com"}})
+
+	if strings.ReplaceAll(unknown, "b@example.com", "a@example.com") != known {
+		t.Fatal("answer for unknown email differs from answer for known email")
+	}
+	expectMissing(t, web.mail.String(), "b@example.com")
+}
+
+// Ende-zu-Ende: Link anfordern -> zu kurzes Passwort kostet den Link nicht -> neues Passwort -> Login.
+func TestForgotPasswordFlow(t *testing.T) {
+	store := newTestStore(t)
+	newVerifiedUser(t, store, "a@example.com", "altpasswort")
+	web := newBrowser(t, store)
+
+	web.submit("/forgot-password", "/forgot-password", url.Values{"email": {"a@example.com"}})
+	link, token := web.mailedLink("/reset-password")
+
+	tooShort := url.Values{"token": {token}, "password": {"kurz"}, "confirm": {"kurz"}}
+	expectContains(t, web.submit(link, "/reset-password", tooShort), "mindestens 8 Zeichen")
+
+	valid := url.Values{"token": {token}, "password": {"neuespasswort"}, "confirm": {"neuespasswort"}}
+	expectContains(t, web.submit(link, "/reset-password", valid), "Passwort wurde geaendert")
+
+	login := url.Values{"email": {"a@example.com"}, "password": {"neuespasswort"}}
+	expectContains(t, web.submit("/login", "/login", login), "Angemeldet als a@example.com")
 }
 
 func TestRateLimiterAllowsUpToLimitThenBlocks(t *testing.T) {

@@ -11,18 +11,23 @@ func main() {
 		log.Fatalf("store init failed: %v", err)
 	}
 	defer store.db.Close()
-	limiter := newRateLimiter()
-	mailer := newMailerFromEnv()
-	mux := http.NewServeMux()
+	mux := newMux(store, newRateLimiter(), newMailerFromEnv())
 
+	log.Println("RAP-LAB laeuft auf http://127.0.0.1:8090")
+	log.Fatal(http.ListenAndServe("127.0.0.1:8090", mux))
+}
+
+// newMux registriert alle Routen. Server und Tests nutzen dieselbe Liste.
+func newMux(store *Store, limiter *RateLimiter, mailer *Mailer) *http.ServeMux {
+	mux := http.NewServeMux()
 	mux.HandleFunc("/", homeHandler(store))
 	mux.HandleFunc("/register", registerHandler(store, limiter, mailer))
 	mux.HandleFunc("/verify", verifyHandler(store))
 	mux.HandleFunc("/resend-verification", resendVerificationHandler(store, limiter, mailer))
+	mux.HandleFunc("/forgot-password", forgotPasswordHandler(store, limiter, mailer))
+	mux.HandleFunc("/reset-password", resetPasswordHandler(store, limiter))
 	mux.HandleFunc("/login", loginHandler(store, limiter))
 	mux.HandleFunc("/logout", logoutHandler(store))
 	mux.HandleFunc("/delete-account", deleteAccountHandler(store))
-
-	log.Println("RAP-LAB laeuft auf http://127.0.0.1:8090")
-	log.Fatal(http.ListenAndServe("127.0.0.1:8090", mux))
+	return mux
 }
