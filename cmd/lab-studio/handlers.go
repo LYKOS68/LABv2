@@ -32,7 +32,20 @@ func homeHandler(store *Store) http.HandlerFunc {
 	}
 }
 
-func registerHandler(store *Store, limiter *RateLimiter) http.HandlerFunc {
+// sendVerification erzeugt einen Token und verschickt den Link. Fehler werden nur geloggt:
+// das Konto existiert bereits, und der Link kann ueber /resend-verification neu angefordert werden.
+func sendVerification(store *Store, mailer *Mailer, email string) {
+	token, err := store.CreateVerification(email)
+	if err != nil {
+		log.Printf("create verification for %s: %v", email, err)
+		return
+	}
+	if err := mailer.SendVerificationLink(email, token); err != nil {
+		log.Printf("send verification mail to %s: %v", email, err)
+	}
+}
+
+func registerHandler(store *Store, limiter *RateLimiter, mailer *Mailer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			render(w, r, store, "content-register", pageData{})
@@ -59,7 +72,47 @@ func registerHandler(store *Store, limiter *RateLimiter) http.HandlerFunc {
 			render(w, r, store, "content-register", pageData{Error: err.Error(), Email: email})
 			return
 		}
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		sendVerification(store, mailer, email)
+		render(w, r, store, "content-verify-sent", pageData{Email: email})
+	}
+}
+
+func verifyHandler(store *Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if err := store.VerifyEmail(r.URL.Query().Get("token")); err != nil {
+			if err != errInvalidToken {
+				log.Printf("verify email: %v", err)
+			}
+			render(w, r, store, "content-verify-result", pageData{Error: errInvalidToken.Error()})
+			return
+		}
+		render(w, r, store, "content-verify-result", pageData{})
+	}
+}
+
+// resendVerificationHandler antwortet immer gleich, egal ob die E-Mail existiert, damit
+// sich darueber nicht herausfinden laesst, welche Adressen registriert sind.
+func resendVerificationHandler(store *Store, limiter *RateLimiter, mailer *Mailer) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if !checkCSRF(w, r, store) {
+			return
+		}
+		if !allowOrTooManyRequests(w, limiter, "resend:"+clientIP(r)) {
+			return
+		}
+		email := r.FormValue("email")
+		if store.IsUnverified(email) {
+			sendVerification(store, mailer, email)
+		}
+		render(w, r, store, "content-verify-sent", pageData{Email: email})
 	}
 }
 
@@ -83,7 +136,7 @@ func loginHandler(store *Store, limiter *RateLimiter) http.HandlerFunc {
 		password := r.FormValue("password")
 		u, err := store.Authenticate(email, password)
 		if err != nil {
-			render(w, r, store, "content-login", pageData{Error: err.Error(), Email: email})
+			render(w, r, store, "content-login", pageData{Error: err.Error(), Email: email, ShowResend: err == errNotVerified})
 			return
 		}
 		token, err := store.CreateSession(u.Email)

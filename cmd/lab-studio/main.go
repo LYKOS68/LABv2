@@ -12,10 +12,13 @@ func main() {
 	}
 	defer store.db.Close()
 	limiter := newRateLimiter()
+	mailer := newMailerFromEnv()
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/", homeHandler(store))
-	mux.HandleFunc("/register", registerHandler(store, limiter))
+	mux.HandleFunc("/register", registerHandler(store, limiter, mailer))
+	mux.HandleFunc("/verify", verifyHandler(store))
+	mux.HandleFunc("/resend-verification", resendVerificationHandler(store, limiter, mailer))
 	mux.HandleFunc("/login", loginHandler(store, limiter))
 	mux.HandleFunc("/logout", logoutHandler(store))
 	mux.HandleFunc("/delete-account", deleteAccountHandler(store))

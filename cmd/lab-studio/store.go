@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
 	"errors"
@@ -10,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	_ "modernc.org/sqlite"
 )
@@ -46,12 +48,43 @@ func newStore(dbPath string) (*Store, error) {
 	)`); err != nil {
 		return nil, err
 	}
+	if err := migrateVerifiedColumn(db); err != nil {
+		return nil, err
+	}
+	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS email_verifications (
+		token_hash TEXT PRIMARY KEY,
+		email TEXT NOT NULL COLLATE NOCASE,
+		expires_at INTEGER NOT NULL
+	)`); err != nil {
+		return nil, err
+	}
 	return &Store{db: db, sessions: make(map[string]string), csrf: make(map[string]csrfEntry)}, nil
 }
+
+// migrateVerifiedColumn fuegt users.verified hinzu, falls es fehlt. Konten, die schon vor
+// der E-Mail-Bestaetigung existierten, werden dabei einmalig als bestaetigt markiert.
+func migrateVerifiedColumn(db *sql.DB) error {
+	var n int
+	if err := db.QueryRow("SELECT COUNT(*) FROM pragma_table_info('users') WHERE name = 'verified'").Scan(&n); err != nil {
+		return err
+	}
+	if n > 0 {
+		return nil
+	}
+	if _, err := db.Exec("ALTER TABLE users ADD COLUMN verified INTEGER NOT NULL DEFAULT 0"); err != nil {
+		return err
+	}
+	_, err := db.Exec("UPDATE users SET verified = 1")
+	return err
+}
+
+const verificationTTL = 24 * time.Hour
 
 var (
 	errAccountExists      = errors.New("Konto mit dieser E-Mail existiert bereits.")
 	errInvalidCredentials = errors.New("E-Mail oder Passwort ist falsch.")
+	errNotVerified        = errors.New("Bitte bestaetige zuerst deine E-Mail-Adresse.")
+	errInvalidToken       = errors.New("Der Link ist ungueltig oder abgelaufen.")
 )
 
 func (s *Store) CreateUser(email, password string) error {
@@ -71,7 +104,8 @@ func (s *Store) CreateUser(email, password string) error {
 
 func (s *Store) Authenticate(email, password string) (*User, error) {
 	var storedEmail, hash string
-	err := s.db.QueryRow("SELECT email, password_hash FROM users WHERE email = ? COLLATE NOCASE", email).Scan(&storedEmail, &hash)
+	var verified bool
+	err := s.db.QueryRow("SELECT email, password_hash, verified FROM users WHERE email = ? COLLATE NOCASE", email).Scan(&storedEmail, &hash, &verified)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, errInvalidCredentials
 	}
@@ -86,7 +120,60 @@ func (s *Store) Authenticate(email, password string) (*User, error) {
 	if !ok {
 		return nil, errInvalidCredentials
 	}
+	// Erst nach korrektem Passwort pruefen, damit der Hinweis nichts ueber fremde Konten verraet.
+	if !verified {
+		return nil, errNotVerified
+	}
 	return &User{Email: storedEmail, PasswordHash: hash}, nil
+}
+
+// CreateVerification erzeugt einen neuen Bestaetigungs-Token fuer email und ersetzt aeltere.
+// In der DB liegt nur der SHA-256-Hash; der Klartext-Token geht ausschliesslich in den Link.
+func (s *Store) CreateVerification(email string) (string, error) {
+	token, err := randomToken()
+	if err != nil {
+		return "", err
+	}
+	now := time.Now().Unix()
+	if _, err := s.db.Exec("DELETE FROM email_verifications WHERE email = ? COLLATE NOCASE OR expires_at <= ?", email, now); err != nil {
+		return "", err
+	}
+	_, err = s.db.Exec("INSERT INTO email_verifications (token_hash, email, expires_at) VALUES (?, ?, ?)",
+		hashToken(token), email, time.Now().Add(verificationTTL).Unix())
+	if err != nil {
+		return "", err
+	}
+	return token, nil
+}
+
+// VerifyEmail loest einen Token genau einmal ein und markiert das Konto als bestaetigt.
+func (s *Store) VerifyEmail(token string) error {
+	if token == "" {
+		return errInvalidToken
+	}
+	var email string
+	err := s.db.QueryRow("DELETE FROM email_verifications WHERE token_hash = ? AND expires_at > ? RETURNING email",
+		hashToken(token), time.Now().Unix()).Scan(&email)
+	if errors.Is(err, sql.ErrNoRows) {
+		return errInvalidToken
+	}
+	if err != nil {
+		return err
+	}
+	_, err = s.db.Exec("UPDATE users SET verified = 1 WHERE email = ? COLLATE NOCASE", email)
+	return err
+}
+
+// IsUnverified meldet, ob ein Konto mit dieser E-Mail existiert und noch unbestaetigt ist.
+func (s *Store) IsUnverified(email string) bool {
+	var n int
+	err := s.db.QueryRow("SELECT COUNT(*) FROM users WHERE email = ? COLLATE NOCASE AND verified = 0", email).Scan(&n)
+	return err == nil && n > 0
+}
+
+func hashToken(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])
 }
 
 func (s *Store) CreateSession(email string) (string, error) {
@@ -124,6 +211,9 @@ func (s *Store) DeleteSession(token string) {
 func (s *Store) DeleteUser(email string) error {
 	key := strings.ToLower(email)
 	if _, err := s.db.Exec("DELETE FROM users WHERE email = ? COLLATE NOCASE", key); err != nil {
+		return err
+	}
+	if _, err := s.db.Exec("DELETE FROM email_verifications WHERE email = ? COLLATE NOCASE", key); err != nil {
 		return err
 	}
 	s.mu.Lock()

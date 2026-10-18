@@ -43,6 +43,7 @@ Jede Datei gehört zu genau einer Funktionsachse, alle im selben Package `main`:
 | `csrf.go` | CSRF-Schutz | vollständige Audit-Fläche für diese Invariante in einer Datei |
 | `ratelimit.go` | Rate-Limiting | `RateLimiter` und zugehörige Funktionen |
 | `validate.go` | Eingabevalidierung | `validateRegistration`, `emailRe` |
+| `mail.go` | E-Mail-Versand | `Mailer` (SMTP aus Umgebungsvariablen, sonst Link in die Konsole) — s. `07-email-verifikation-plan.md` |
 | `templates.go` | Präsentation | CSS, HTML-Templates, `pageData`, `render` |
 | `main_test.go` | Tests | Go-idiomatisch neben dem Code |
 

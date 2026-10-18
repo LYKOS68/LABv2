@@ -18,6 +18,8 @@ Läuft auf `http://127.0.0.1:8090`. Alternativ VS Code: Terminal → Run Task �
 - CSRF-Schutz auf allen Mutationen (Register/Login/Logout/Delete-Account): Synchronizer-Token gegen HttpOnly-Cookie, 30 Minuten gültig, zeitkonstanter Vergleich. Fehlendes/falsches Token → 403.
 - Rate-Limiting auf Register/Login: max. 5 Versuche pro 10 Minuten pro IP, danach `429` + `Retry-After`. In-Memory, begrenzte Map (max. 10.000 Schlüssel).
 
+- E-Mail-Bestätigung: Nach der Registrierung kann man sich erst anmelden, wenn man den Link aus der Mail geöffnet hat (24 h gültig, einmalig, „erneut senden" auf der Anmeldeseite). Ohne Mail-Dienst steht der Link im Server-Konsolenfenster. Für echten Versand vor dem Start setzen: `SMTP_HOST`, `SMTP_PORT` (Standard 587), `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`, `BASE_URL`. Siehe `hub/rules/07-email-verifikation-plan.md`.
+
 Damit sind alle vier Schritte aus `hub/rules/02-sicherheitserweiterungen-plan.md` umgesetzt.
 
 `cmd/lab-studio/main.go` ist auf reines Wiring reduziert (25 Zeilen); die Logik liegt in sieben nach Funktionsachse getrennten Dateien im selben Package — siehe `hub/rules/05-main-go-zerlegung.md` für die Begründung je Datei und `hub/rules/CONTRACT.md` für den vollständigen Pfadvertrag.

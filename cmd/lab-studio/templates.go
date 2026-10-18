@@ -23,6 +23,8 @@ button{padding:10px;background:#d4af37;border:none;color:#000;font-weight:bold;c
 .error{color:#ff6b6b;text-align:center}
 .ok{color:#8fe388;text-align:center}
 .account-bar{text-align:center;margin-top:24px}
+.switch{text-align:center;color:#999;font-size:13px}
+.switch a{color:#d4af37}
 .nav-btn{background:none;border:none;color:#d4af37;text-decoration:none;font-weight:bold;letter-spacing:1px;margin-left:24px;padding:0;cursor:pointer;font-size:inherit;font-family:inherit}
 `
 
@@ -43,8 +45,7 @@ var tpl = template.Must(template.New("base").Parse(`
         <button type="submit" class="nav-btn">Logout</button>
       </form>
     {{else}}
-      <a href="/register">Registrieren</a>
-      <a href="/login">Login</a>
+      <a href="/login">Anmelden</a>
     {{end}}
   </nav>
 </header>
@@ -92,10 +93,11 @@ Oder du hoerst irgendwann auf, deinen Musikprozess aus Einzelteilen zusammenzuba
   <input type="password" name="confirm" placeholder="Passwort wiederholen" required>
   <button type="submit">Konto erstellen</button>
 </form>
+<p class="switch">Schon ein Konto? <a href="/login">Anmelden</a></p>
 {{end}}
 
 {{define "content-login"}}
-<h1>Login</h1>
+<h1>Anmelden</h1>
 {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
 <form method="post" action="/login">
   <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
@@ -103,14 +105,41 @@ Oder du hoerst irgendwann auf, deinen Musikprozess aus Einzelteilen zusammenzuba
   <input type="password" name="password" placeholder="Passwort" required>
   <button type="submit">Anmelden</button>
 </form>
+{{if .ShowResend}}
+<form method="post" action="/resend-verification">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+  <input type="hidden" name="email" value="{{.Email}}">
+  <button type="submit">Bestaetigungslink erneut senden</button>
+</form>
+{{end}}
+<p class="switch">Noch kein Konto? <a href="/register">Registrieren</a></p>
+{{end}}
+
+{{define "content-verify-sent"}}
+<h1>Fast geschafft</h1>
+<p class="ok">Wir haben einen Bestaetigungslink an {{.Email}} geschickt.</p>
+<p class="switch">Klicke auf den Link in der E-Mail, um dein Konto freizuschalten. Der Link ist 24 Stunden gueltig.</p>
+<p class="switch"><a href="/login">Zur Anmeldung</a></p>
+{{end}}
+
+{{define "content-verify-result"}}
+<h1>E-Mail-Bestaetigung</h1>
+{{if .Error}}
+<p class="error">{{.Error}}</p>
+<p class="switch">Melde dich an, um einen neuen Link anzufordern. <a href="/login">Anmelden</a></p>
+{{else}}
+<p class="ok">Deine E-Mail-Adresse ist bestaetigt.</p>
+<p class="switch"><a href="/login">Jetzt anmelden</a></p>
+{{end}}
 {{end}}
 `))
 
 type pageData struct {
-	LoggedIn  bool
-	Email     string
-	Error     string
-	CSRFToken string
+	LoggedIn   bool
+	Email      string
+	Error      string
+	CSRFToken  string
+	ShowResend bool
 }
 
 func render(w http.ResponseWriter, r *http.Request, store *Store, contentName string, data pageData) {
