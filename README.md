@@ -18,6 +18,8 @@ Läuft auf `http://127.0.0.1:8090`. Alternativ VS Code: Terminal → Run Task �
 - CSRF-Schutz auf allen Mutationen (Register/Login/Logout/Delete-Account): Synchronizer-Token gegen HttpOnly-Cookie, 30 Minuten gültig, zeitkonstanter Vergleich. Fehlendes/falsches Token → 403.
 - Rate-Limiting auf Register/Login: max. 5 Versuche pro 10 Minuten pro IP, danach `429` + `Retry-After`. In-Memory, begrenzte Map (max. 10.000 Schlüssel).
 
+- LAB-STUDIO unter `/studio` (nur angemeldet): verschiebbare/zoombare Arbeitsfläche, Notizen (speichern automatisch), SONGS-Fenster mit „Neuer Song", Editor mit Speichern/Strg+S. Jedes Konto startet leer und sieht nur seine eigenen Daten. Siehe `hub/rules/09-lab-studio-mvp-plan.md`.
+- Markenfarben (Schwarz, Neongrün `#ACE182`, Gold `#C2B198`, Braun `#543824`) für die ganze Seite in `cmd/lab-studio/web/static/brand.css`.
 - Passwort vergessen: Link auf der Anmeldeseite, 1 h gültiger Einmal-Link per Mail, beendet alle offenen Sitzungen. Siehe `hub/rules/08-passwort-vergessen-plan.md`.
 - E-Mail-Bestätigung: Nach der Registrierung kann man sich erst anmelden, wenn man den Link aus der Mail geöffnet hat (24 h gültig, einmalig, „erneut senden" auf der Anmeldeseite). Ohne Mail-Dienst steht der Link im Server-Konsolenfenster. Für echten Versand vor dem Start setzen: `SMTP_HOST`, `SMTP_PORT` (Standard 587), `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`, `BASE_URL`. Siehe `hub/rules/07-email-verifikation-plan.md`.
 

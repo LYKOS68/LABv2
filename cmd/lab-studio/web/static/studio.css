@@ -1,0 +1,242 @@
+/* LAB-STUDIO — Masse wie im Prototyp, Farben aus brand.css */
+:root {
+  --fs-xs: 12px;
+  --fs-s: 13px;
+  --fs-m: 16px;
+  --line: 1px;
+  --r-s: 6px;
+  --r-m: 8px;
+  --r-l: 10px;
+  --sp-1: 8px;
+  --sp-2: 10px;
+  --sp-3: 12px;
+  --sp-5: 16px;
+  --nav-w: 112px;
+  --tile-w: 180px;
+  --thumb-h: 120px;
+  --head-h: 36px;
+  --grid: 24px;
+  --track: 1px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--neon);
+  font-family: var(--font);
+}
+
+/* ── Linke Leiste ── */
+
+#nav {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--nav-w);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-2);
+  border-right: var(--line) solid var(--brown);
+  background: var(--bg);
+  z-index: 2;
+}
+
+#nav .home {
+  color: var(--gold);
+  font-size: var(--fs-xs);
+  font-weight: bold;
+  letter-spacing: var(--track);
+  text-decoration: none;
+}
+
+#nav h1 {
+  font-size: var(--fs-s);
+  margin: 0 0 var(--sp-1);
+  color: var(--gold);
+  letter-spacing: var(--track);
+}
+
+#zoomlabel {
+  color: var(--gold);
+  font-size: var(--fs-xs);
+}
+
+button {
+  background: transparent;
+  color: var(--neon);
+  border: var(--line) solid var(--neon);
+  padding: var(--sp-1);
+  border-radius: var(--r-s);
+  font: inherit;
+  font-size: var(--fs-s);
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--neon);
+  color: var(--bg);
+}
+
+/* ── Arbeitsflaeche ── */
+
+#viewport {
+  position: fixed;
+  left: var(--nav-w);
+  top: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  touch-action: none;
+  cursor: grab;
+  background-image: radial-gradient(var(--brown) var(--line), transparent var(--line));
+  background-size: var(--grid) var(--grid);
+}
+
+#world {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
+
+/* ── Felder ── */
+
+.field {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  border: var(--line) solid var(--brown);
+  border-radius: var(--r-l);
+  background: var(--bg);
+  overflow: hidden;
+  cursor: default;
+}
+
+.field[aria-selected="true"] {
+  border-color: var(--neon);
+}
+
+.head {
+  height: var(--head-h);
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 0 var(--sp-2);
+  color: var(--gold);
+  border-bottom: var(--line) solid var(--brown);
+  cursor: move;
+  user-select: none;
+  touch-action: none;
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-2);
+}
+
+textarea,
+input {
+  background: var(--bg);
+  color: var(--fg);
+  border: var(--line) solid var(--brown);
+  border-radius: var(--r-m);
+  padding: var(--sp-3);
+  font: inherit;
+  font-size: var(--fs-m);
+}
+
+textarea {
+  flex: 1;
+  width: 100%;
+  resize: none;
+}
+
+/* ── SONGS-Fenster ── */
+
+.new-song {
+  display: flex;
+  gap: var(--sp-1);
+}
+
+.new-song input {
+  flex: 1;
+  padding: var(--sp-1);
+  font-size: var(--fs-s);
+}
+
+.tiles {
+  display: flex;
+  gap: var(--sp-5);
+  overflow-x: auto;
+}
+
+.tile {
+  min-width: var(--tile-w);
+  border: var(--line) solid var(--brown);
+  border-radius: var(--r-l);
+  padding: var(--sp-2);
+  color: var(--gold);
+  text-align: left;
+}
+
+.thumb {
+  height: var(--thumb-h);
+  border-radius: var(--r-s);
+  background: linear-gradient(135deg, var(--brown), var(--bg));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--neon);
+  font-size: var(--fs-xs);
+}
+
+.tile h2 {
+  font-size: var(--fs-s);
+  margin: var(--sp-1) 0 0;
+}
+
+.empty {
+  color: var(--gold);
+  font-size: var(--fs-s);
+}
+
+/* ── Song-Editor ── */
+
+.editor {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  color: var(--gold);
+  font-size: var(--fs-s);
+}
+
+#status {
+  position: fixed;
+  right: var(--sp-3);
+  bottom: var(--sp-3);
+  color: var(--gold);
+  font-size: var(--fs-s);
+  z-index: 3;
+}

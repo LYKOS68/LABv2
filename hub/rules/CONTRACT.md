@@ -38,13 +38,16 @@ Jede Datei gehört zu genau einer Funktionsachse, alle im selben Package `main`:
 
 | Datei | Achse | Inhalt |
 |---|---|---|
-| `main.go` | Wiring | nur `func main()` — Store/Limiter erzeugen, Routen registrieren, Server starten (Kleber-Prinzip) |
+| `main.go` | Wiring | `func main()` (Store/Mailer erzeugen, Server starten) + `newMux` (alle Routen an einer Stelle, auch von den Tests genutzt) — Kleber-Prinzip |
 | `handlers.go` | HTTP-Routing | `currentUser` + die fünf Route-Handler |
 | `store.go` | Persistenz | `User`, `Store`, alle SQL-Zugriffe — **einzige Datei, die `*sql.DB` berührt** |
 | `password.go` | Passwort-Hashing | Argon2id-Parameter, `hashPassword`, `verifyPassword` |
 | `csrf.go` | CSRF-Schutz | vollständige Audit-Fläche für diese Invariante in einer Datei |
 | `ratelimit.go` | Rate-Limiting | `RateLimiter` und zugehörige Funktionen |
 | `validate.go` | Eingabevalidierung | `validateRegistration`, `emailRe` |
+| `studio.go` | LAB-STUDIO (HTTP) | Seite `/studio`, JSON-API `/studio/api/…`, Sitzungs- und CSRF-Prüfung (`studioAPI`) — s. `09-lab-studio-mvp-plan.md` |
+| `web/` | Präsentation (Dateien) | per `go:embed` eingebaut: `studio.html` (Vorlage), `static/` unter `/static/` (`brand.css` = Markenfarben der ganzen Seite, `studio.css`, `studio.js`). Liegt unter `cmd/lab-studio/`, weil `go:embed` nur Unterordner des Pakets erlaubt |
+| `studio_test.go` | Tests | LAB-STUDIO, Go-idiomatisch neben `studio.go` |
 | `mail.go` | E-Mail-Versand | `Mailer` (SMTP aus Umgebungsvariablen, sonst Link in die Konsole) — s. `07-email-verifikation-plan.md` |
 | `templates.go` | Präsentation | CSS, HTML-Templates, `pageData`, `render` |
 | `main_test.go` | Tests | Go-idiomatisch neben dem Code |

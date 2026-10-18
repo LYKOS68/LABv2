@@ -29,5 +29,17 @@ func newMux(store *Store, limiter *RateLimiter, mailer *Mailer) *http.ServeMux {
 	mux.HandleFunc("/login", loginHandler(store, limiter))
 	mux.HandleFunc("/logout", logoutHandler(store))
 	mux.HandleFunc("/delete-account", deleteAccountHandler(store))
+
+	mux.Handle("GET /static/", staticFiles())
+	mux.HandleFunc("GET /studio", studioPageHandler(store))
+	mux.HandleFunc("GET /studio/api/csrf", studioAPI(store, handleStudioCSRF(store)))
+	mux.HandleFunc("GET /studio/api/songs", studioAPI(store, handleListSongs(store)))
+	mux.HandleFunc("POST /studio/api/songs", studioAPI(store, handleCreateSong(store)))
+	mux.HandleFunc("GET /studio/api/songs/{id}", studioAPI(store, handleGetSong(store)))
+	mux.HandleFunc("PUT /studio/api/songs/{id}", studioAPI(store, handleSaveSong(store)))
+	mux.HandleFunc("GET /studio/api/workspace", studioAPI(store, handleWorkspace(store)))
+	mux.HandleFunc("PUT /studio/api/workspace/view", studioAPI(store, handleSaveView(store)))
+	mux.HandleFunc("POST /studio/api/fields", studioAPI(store, handleCreateField(store)))
+	mux.HandleFunc("PATCH /studio/api/fields/{id}", studioAPI(store, handleUpdateField(store)))
 	return mux
 }

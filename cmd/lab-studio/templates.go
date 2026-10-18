@@ -6,38 +6,41 @@ import (
 	"net/http"
 )
 
+// Farben kommen aus web/static/brand.css (gemeinsam mit LAB-STUDIO).
 const baseCSS = `
-body{background:#0a0a0a;color:#f2f2f2;font-family:Arial,Helvetica,sans-serif;margin:0;padding:0}
-header{display:flex;justify-content:space-between;align-items:center;padding:16px 24px;border-bottom:1px solid #222}
-header a{color:#d4af37;text-decoration:none;font-weight:bold;letter-spacing:1px;margin-left:24px}
-.brand{color:#d4af37;font-weight:bold;letter-spacing:1px}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);margin:0;padding:0}
+header{display:flex;justify-content:space-between;align-items:center;padding:16px 24px;border-bottom:1px solid var(--brown)}
+header a{color:var(--gold);text-decoration:none;font-weight:bold;letter-spacing:1px;margin-left:24px}
+.brand{color:var(--gold);font-weight:bold;letter-spacing:1px}
 main{max-width:640px;margin:0 auto;padding:32px 24px}
-h1{color:#d4af37;text-align:center}
-.tagline{color:#d4af37;text-align:center;font-weight:bold;text-transform:uppercase}
-.points p{color:#fff;text-align:center;font-weight:bold;text-transform:uppercase;margin:4px 0}
-.fliesstext{background:#141414;padding:24px;white-space:pre-line}
-.ende{color:#d4af37;text-align:center;font-weight:bold;margin-top:24px}
+h1{color:var(--gold);text-align:center}
+.tagline{color:var(--neon);text-align:center;font-weight:bold;text-transform:uppercase}
+.points p{color:var(--fg);text-align:center;font-weight:bold;text-transform:uppercase;margin:4px 0}
+.fliesstext{border:1px solid var(--brown);border-radius:10px;padding:24px;white-space:pre-line}
+.ende{color:var(--gold);text-align:center;font-weight:bold;margin-top:24px}
 form{display:flex;flex-direction:column;gap:12px;max-width:360px;margin:32px auto}
-input{padding:10px;background:#111;border:1px solid #333;color:#fff}
-button{padding:10px;background:#d4af37;border:none;color:#000;font-weight:bold;cursor:pointer}
-.error{color:#ff6b6b;text-align:center}
-.ok{color:#8fe388;text-align:center}
+input{padding:10px;background:var(--bg);border:1px solid var(--brown);border-radius:8px;color:var(--fg)}
+button{padding:10px;background:transparent;border:1px solid var(--neon);border-radius:6px;color:var(--neon);font-weight:bold;cursor:pointer}
+button:hover{background:var(--neon);color:var(--bg)}
+.error{color:var(--error);text-align:center}
+.ok{color:var(--neon);text-align:center}
 .account-bar{text-align:center;margin-top:24px}
-.switch{text-align:center;color:#999;font-size:13px}
-.switch a{color:#d4af37}
-.nav-btn{background:none;border:none;color:#d4af37;text-decoration:none;font-weight:bold;letter-spacing:1px;margin-left:24px;padding:0;cursor:pointer;font-size:inherit;font-family:inherit}
+.switch{text-align:center;color:var(--gold);font-size:13px}
+.switch a{color:var(--neon)}
+.nav-btn{background:none;border:none;color:var(--gold);text-decoration:none;font-weight:bold;letter-spacing:1px;margin-left:24px;padding:0;cursor:pointer;font-size:inherit;font-family:inherit}
+.nav-btn:hover{background:none;color:var(--neon)}
 `
 
 var tpl = template.Must(template.New("base").Parse(`
 {{define "layout"}}
 <!doctype html>
 <html lang="de">
-<head><meta charset="utf-8"><title>RAP-LAB</title><style>` + baseCSS + `</style></head>
+<head><meta charset="utf-8"><title>RAP-LAB</title><link rel="stylesheet" href="/static/brand.css"><style>` + baseCSS + `</style></head>
 <body>
 <header>
   <span class="brand">RAP-LAB</span>
   <nav>
-    <a href="#">LAB-STUDIO</a>
+    <a href="/studio">LAB-STUDIO</a>
     <a href="#">LAB-CONNECT</a>
     {{if .LoggedIn}}
       <form method="post" action="/logout" style="display:inline">

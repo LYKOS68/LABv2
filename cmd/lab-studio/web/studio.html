@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="csrf-token" content="{{.CSRFToken}}">
+<title>RAP-LAB - LAB-STUDIO</title>
+<link rel="stylesheet" href="/static/brand.css">
+<link rel="stylesheet" href="/static/studio.css">
+</head>
+<body>
+<aside id="nav" aria-label="Navigation">
+  <a class="home" href="/">RAP-LAB</a>
+  <h1>LAB-STUDIO</h1>
+  <button data-action="songs">SONGS</button>
+  <button data-action="add-field">+ FELD</button>
+  <button data-action="zoom-in">ZOOM +</button>
+  <button data-action="zoom-out">ZOOM −</button>
+  <button data-action="reset-view">ANSICHT</button>
+  <span id="zoomlabel"></span>
+</aside>
+<main id="viewport"><div id="world"></div></main>
+<div id="status" role="status"></div>
+<script src="/static/studio.js"></script>
+</body>
+</html>

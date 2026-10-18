@@ -1,0 +1,11 @@
+/* RAP-LAB Markenfarben — gelten fuer die ganze Seite (hub/rules/09-lab-studio-mvp-plan.md).
+   Quelle: LAB-STUDIO-Prototyp, passend zum Neon-Kronen-Logo. */
+:root {
+  --bg: #000000;
+  --fg: #FFFFFF;
+  --neon: #ACE182;
+  --gold: #C2B198;
+  --brown: #543824;
+  --error: #FF6B6B;
+  --font: system-ui, sans-serif;
+}
