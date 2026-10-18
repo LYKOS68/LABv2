@@ -46,7 +46,9 @@ Jede Datei gehört zu genau einer Funktionsachse, alle im selben Package `main`:
 | `ratelimit.go` | Rate-Limiting | `RateLimiter` und zugehörige Funktionen |
 | `validate.go` | Eingabevalidierung | `validateRegistration`, `emailRe` |
 | `studio.go` | LAB-STUDIO (HTTP) | Seite `/studio`, JSON-API `/studio/api/…`, Sitzungs- und CSRF-Prüfung (`studioAPI`) — s. `09-lab-studio-mvp-plan.md` |
-| `web/` | Präsentation (Dateien) | per `go:embed` eingebaut: `studio.html` (Vorlage), `static/` unter `/static/` (`brand.css` = Markenfarben der ganzen Seite, `studio.css`, `studio.js`). Liegt unter `cmd/lab-studio/`, weil `go:embed` nur Unterordner des Pakets erlaubt |
+| `web/` | Präsentation (Dateien) | per `go:embed` eingebaut: `studio.html` (Vorlage), `connect.html`, `static/` unter `/static/` (`brand.css` = Markenfarben der ganzen Seite, `studio.css/js`, `connect.css/js`, `img/` Marken-Bilder). Liegt unter `cmd/lab-studio/`, weil `go:embed` nur Unterordner des Pakets erlaubt |
+| `connect.go` | LAB-CONNECT (HTTP) | Seite `/connect` — vorerst reiner Oberflächen-Prototyp ohne Server-Daten, s. `11-lab-connect-mvp-plan.md` |
+| `connect_test.go` | Tests | LAB-CONNECT |
 | `studio_test.go` | Tests | LAB-STUDIO, Go-idiomatisch neben `studio.go` |
 | `mail.go` | E-Mail-Versand | `Mailer` (SMTP aus Umgebungsvariablen, sonst Link in die Konsole) — s. `07-email-verifikation-plan.md` |
 | `templates.go` | Präsentation | CSS, HTML-Templates, `pageData`, `render` |

@@ -31,6 +31,7 @@ func newMux(store *Store, limiter *RateLimiter, mailer *Mailer) *http.ServeMux {
 	mux.HandleFunc("/delete-account", deleteAccountHandler(store))
 
 	mux.Handle("GET /static/", staticFiles())
+	mux.HandleFunc("GET /connect", connectPageHandler())
 	mux.HandleFunc("GET /studio", studioPageHandler(store))
 	mux.HandleFunc("GET /studio/api/csrf", studioAPI(store, handleStudioCSRF(store)))
 	mux.HandleFunc("GET /studio/api/songs", studioAPI(store, handleListSongs(store)))

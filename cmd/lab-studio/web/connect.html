@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RAP-LAB - LAB-CONNECT</title>
+<link rel="stylesheet" href="/static/brand.css">
+<link rel="stylesheet" href="/static/connect.css">
+</head>
+<body>
+<div class="app">
+
+  <div class="stage">
+    <span class="stage-name">ETAPPE 1</span>
+    <span>Designentwurf · keine echten Anzeigen</span>
+  </div>
+
+  <header class="top">
+    <a class="logo" href="/"><img src="/static/img/schriftzug.png" alt="RAP-LAB"></a>
+    <button class="icon-button" data-later="Profil" aria-label="Profil" data-icon="user"></button>
+  </header>
+
+  <nav class="tabs">
+    <button data-view="entdecken" class="active">Entdecken</button>
+    <button data-view="anzeige">Anzeige</button>
+    <button data-open-sheet>Inserieren</button>
+  </nav>
+
+  <main>
+    <!-- Entdecken -->
+    <section id="view-entdecken" class="view">
+      <p class="kicker">Dein Sound. Deine Leute.</p>
+      <h1>Was fehlt deinem Projekt?</h1>
+
+      <label class="search">
+        <span data-icon="search"></span>
+        <input id="search" type="search" placeholder="Beats, Mixing, Features …">
+        <span class="muted-icon" data-icon="sliders"></span>
+      </label>
+
+      <div class="place-row">
+        <span class="place"><span data-icon="pin"></span>Deutschland &amp; Remote</span>
+        <span class="hint">Beispielansicht</span>
+      </div>
+
+      <div id="categories" class="categories"></div>
+
+      <div class="section-head">
+        <h2>Entdecke Möglichkeiten</h2>
+        <span id="count" class="hint"></span>
+      </div>
+      <div id="cards" class="cards"></div>
+    </section>
+
+    <!-- Anzeige -->
+    <section id="view-anzeige" class="view" hidden>
+      <button class="back" data-view="entdecken"><span data-icon="back"></span>Entdecken</button>
+      <div id="detail"></div>
+    </section>
+
+    <!-- Noch nicht gebaut -->
+    <section id="view-later" class="view later" hidden>
+      <h1 id="later-title"></h1>
+      <p>Folgt in Etappe 2.</p>
+    </section>
+  </main>
+
+  <nav class="bottom">
+    <button data-view="entdecken" class="active"><span data-icon="search"></span>Entdecken</button>
+    <button data-later="Favoriten"><span data-icon="heart"></span>Favoriten</button>
+    <button data-open-sheet><span data-icon="plus"></span>Inserieren</button>
+    <button data-later="Nachrichten"><span data-icon="chat"></span>Nachrichten</button>
+    <button data-later="Profil"><span data-icon="user"></span>Profil</button>
+  </nav>
+
+  <!-- Inserieren: oeffnet sich ueber der Seite, schliesst mit X oder Esc -->
+  <div id="sheet" class="sheet" hidden>
+    <form id="listing-form" class="sheet-panel">
+      <button type="button" class="icon-button close" data-close-sheet aria-label="Schließen" data-icon="close"></button>
+      <p class="kicker">Dein Können zählt.</p>
+      <h1>Zeig, was du kannst.</h1>
+      <p class="sub">Oder sag, wen du für dein Projekt suchst.</p>
+
+      <div class="choice">
+        <label><input type="radio" name="kind" value="biete" checked><span>Ich biete</span></label>
+        <label><input type="radio" name="kind" value="suche"><span>Ich suche</span></label>
+      </div>
+
+      <div class="upload">
+        <span data-icon="image"></span>
+        <strong>Bilder hinzufügen</strong>
+        <span class="hint">Upload folgt in Etappe 2</span>
+      </div>
+
+      <label class="field">Titel *
+        <input name="title" required maxlength="80" placeholder="Zum Beispiel: Mix &amp; Master für deinen Song">
+      </label>
+
+      <label class="field">Kategorie *
+        <select name="category" id="category-select" required></select>
+      </label>
+
+      <label class="field">Beschreibung *
+        <textarea name="description" required rows="4" placeholder="Was bietest du an, was suchst du genau?"></textarea>
+      </label>
+
+      <div class="price-row">
+        <label class="field">Preis in €
+          <input name="price" type="number" min="0" step="1" placeholder="50">
+        </label>
+        <label class="field">Einheit
+          <select name="unit">
+            <option>PLATZHALTER</option>
+          </select>
+        </label>
+      </div>
+
+      <label class="field">Ort
+        <input name="place" placeholder="Zum Beispiel: Mannheim">
+      </label>
+      <label class="check"><input type="checkbox" name="remote" checked> Auch Remote möglich</label>
+
+      <button type="submit" class="primary">Anzeige aufgeben</button>
+      <p class="hint center">Entwurf: Die Anzeige erscheint nur in dieser Ansicht und wird nicht gespeichert.</p>
+    </form>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+</div>
+<script src="/static/connect.js"></script>
+</body>
+</html>

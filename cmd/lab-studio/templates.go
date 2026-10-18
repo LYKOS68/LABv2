@@ -47,7 +47,7 @@ var tpl = template.Must(template.New("base").Parse(`
   <a class="brand" href="/"><img src="/static/img/krone.jpg" alt="RAP-LAB Startseite"></a>
   <nav>
     <a href="/studio">LAB-STUDIO</a>
-    <a href="#">LAB-CONNECT</a>
+    <a href="/connect">LAB-CONNECT</a>
     {{if .LoggedIn}}
       <form method="post" action="/logout" style="display:inline">
         <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
