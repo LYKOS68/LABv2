@@ -22,6 +22,8 @@ Statische Assets (`web/`), handgepflegte Settings (`configs/`), Skripte, die Rom
 
 **Historie** bekommt keinen eigenen Ordner. Git (`.git/`) erfüllt diese Zuständigkeit bereits.
 
+**Automatische Prüfung** liegt in `.github/workflows/test.yml` — Pfad von GitHub vorgegeben, nicht frei wählbar. Läuft bei jedem Push: `gofmt`, `go vet`, `go test`.
+
 **Tests** liegen Go-idiomatisch als `*_test.go` neben dem Code (`cmd/lab-studio/main_test.go`), nicht in einem separaten Top-Level-`tests/`-Ordner — `go test ./...` erwartet sie dort.
 
 ## `hub/rules/` vs. der Rest von `hub/`

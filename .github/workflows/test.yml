@@ -1,0 +1,25 @@
+# Prueft bei jedem Push und Pull Request: Formatierung, go vet, alle Tests.
+name: test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Formatierung (gofmt)
+        run: test -z "$(gofmt -l cmd/)" || { gofmt -l cmd/; exit 1; }
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: Tests
+        run: go test ./... -v
