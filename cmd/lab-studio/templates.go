@@ -8,16 +8,21 @@ import (
 
 // Farben kommen aus web/static/brand.css (gemeinsam mit LAB-STUDIO).
 const baseCSS = `
-body{background:var(--bg);color:var(--fg);font-family:var(--font);margin:0;padding:0}
-header{display:flex;justify-content:space-between;align-items:center;padding:16px 24px;border-bottom:1px solid var(--brown)}
-header a{color:var(--gold);text-decoration:none;font-weight:bold;letter-spacing:1px;margin-left:24px}
-.brand{color:var(--gold);font-weight:bold;letter-spacing:1px}
-main{max-width:640px;margin:0 auto;padding:32px 24px}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);margin:0;padding:0;overflow-x:hidden}
+header{display:flex;justify-content:space-between;align-items:center;padding:12px 24px;border-bottom:1px solid #1a1a1a}
+header nav{display:flex;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+header a{color:var(--gold);text-decoration:none;letter-spacing:2px;margin-left:24px}
+.brand{display:block;margin:0;line-height:0}
+.brand img{height:48px;width:auto}
+main{max-width:720px;margin:0 auto;padding:32px 24px}
 h1{color:var(--gold);text-align:center}
-.tagline{color:var(--neon);text-align:center;font-weight:bold;text-transform:uppercase}
-.points p{color:var(--fg);text-align:center;font-weight:bold;text-transform:uppercase;margin:4px 0}
-.fliesstext{border:1px solid var(--brown);border-radius:10px;padding:24px;white-space:pre-line}
-.ende{color:var(--gold);text-align:center;font-weight:bold;margin-top:24px}
+.schriftzug{margin:16px 0 24px;line-height:0}
+.schriftzug img{display:block;width:100%;height:auto}
+.tagline{color:var(--gold);text-align:center;text-transform:uppercase;letter-spacing:1px;font-size:20px;line-height:1.5;margin:0 0 40px}
+.points{margin-bottom:32px}
+.points p{color:var(--fg);text-align:center;font-weight:bold;text-transform:uppercase;letter-spacing:2px;font-size:19px;margin:6px 0}
+.fliesstext{margin:0 calc(50% - 50vw);padding:32px max(24px,calc(50vw - 336px));white-space:pre-line;font-size:18px;line-height:1.6;background:linear-gradient(rgba(0,0,0,.82),rgba(0,0,0,.82)),url(/static/img/leder-hintergrund.jpg) center/cover}
+.ende{color:var(--gold);text-align:center;font-weight:bold;letter-spacing:3px;font-size:20px;margin-top:32px}
 form{display:flex;flex-direction:column;gap:12px;max-width:360px;margin:32px auto}
 input{padding:10px;background:var(--bg);border:1px solid var(--brown);border-radius:8px;color:var(--fg)}
 button{padding:10px;background:transparent;border:1px solid var(--neon);border-radius:6px;color:var(--neon);font-weight:bold;cursor:pointer}
@@ -27,18 +32,19 @@ button:hover{background:var(--neon);color:var(--bg)}
 .account-bar{text-align:center;margin-top:24px}
 .switch{text-align:center;color:var(--gold);font-size:13px}
 .switch a{color:var(--neon)}
-.nav-btn{background:none;border:none;color:var(--gold);text-decoration:none;font-weight:bold;letter-spacing:1px;margin-left:24px;padding:0;cursor:pointer;font-size:inherit;font-family:inherit}
+.nav-btn{background:none;border:none;color:var(--gold);text-decoration:none;font-weight:normal;letter-spacing:2px;margin-left:24px;padding:0;cursor:pointer;font-size:inherit;font-family:inherit}
 .nav-btn:hover{background:none;color:var(--neon)}
+@media (max-width:600px){header{padding:10px 16px}header a,.nav-btn{margin-left:14px;letter-spacing:1px;font-size:14px}.brand img{height:40px}.tagline{font-size:17px}.points p{font-size:16px}.fliesstext{font-size:16px}}
 `
 
 var tpl = template.Must(template.New("base").Parse(`
 {{define "layout"}}
 <!doctype html>
 <html lang="de">
-<head><meta charset="utf-8"><title>RAP-LAB</title><link rel="stylesheet" href="/static/brand.css"><style>` + baseCSS + `</style></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>RAP-LAB</title><link rel="stylesheet" href="/static/brand.css"><style>` + baseCSS + `</style></head>
 <body>
 <header>
-  <span class="brand">RAP-LAB</span>
+  <a class="brand" href="/"><img src="/static/img/krone.jpg" alt="RAP-LAB Startseite"></a>
   <nav>
     <a href="/studio">LAB-STUDIO</a>
     <a href="#">LAB-CONNECT</a>
@@ -58,8 +64,8 @@ var tpl = template.Must(template.New("base").Parse(`
 {{end}}
 
 {{define "content-home"}}
-<h1>RAP-LAB</h1>
-<p class="tagline">Ein Ort fuer das, was zwischen Idee und Musik passiert.</p>
+<h1 class="schriftzug"><img src="/static/img/schriftzug.png" alt="RAP-LAB"></h1>
+<p class="tagline">Ein Ort für das, was zwischen Idee und Musik passiert.</p>
 <div class="points">
 <p>Musik entwickeln.</p>
 <p>Menschen finden.</p>
@@ -68,12 +74,12 @@ var tpl = template.Must(template.New("base").Parse(`
 </div>
 <div class="fliesstext">Denn mal ehrlich:
 
-Du kannst den naechsten Song auch wieder in deinen Handy-Notizen schreiben.
-Den Producer kannst du wieder ueber fuenf Ecken suchen.
+Du kannst den nächsten Song auch wieder in deinen Handy-Notizen schreiben.
+Den Producer kannst du wieder über fünf Ecken suchen.
 Den Mixer wieder in irgendeiner Instagram-Story finden.
 Den Videografen wieder irgendwo in einem Discord-Server suchen.
 Und deine Brancheninformationen kannst du dir wieder aus zehn verschiedenen Quellen zusammensuchen.
-Oder du hoerst irgendwann auf, deinen Musikprozess aus Einzelteilen zusammenzubauen.</div>
+Oder du hörst irgendwann auf, deinen Musikprozess aus Einzelteilen zusammenzubauen.</div>
 <p class="ende">RAP-LAB.</p>
 {{if .LoggedIn}}
 <div class="account-bar">

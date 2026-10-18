@@ -455,3 +455,22 @@ func TestVerifyPasswordRejectsCorruptHashWithoutPanic(t *testing.T) {
 		}
 	}
 }
+
+// --- Startseite -----------------------------------------------------------------------------
+
+func TestHomeShowsBrandImages(t *testing.T) {
+	web := newBrowser(t, newTestStore(t))
+	home := web.get("/")
+	images := []string{"krone.jpg", "schriftzug.png", "leder-hintergrund.jpg"}
+	for _, name := range images {
+		expectContains(t, home, "/static/img/"+name)
+		resp, err := web.client.Get(web.base + "/static/img/" + name)
+		if err != nil {
+			t.Fatalf("GET %s: %v", name, err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("%s: status %d", name, resp.StatusCode)
+		}
+	}
+}
