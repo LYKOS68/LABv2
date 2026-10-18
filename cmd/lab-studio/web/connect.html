@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="/static/connect.css">
 </head>
 <body>
-<div class="app">
+<div class="app" data-view="entdecken">
 
   <div class="stage">
     <span class="stage-name">ETAPPE 1</span>
@@ -16,40 +16,54 @@
   </div>
 
   <header class="top">
-    <a class="logo" href="/"><img src="/static/img/schriftzug.png" alt="RAP-LAB"></a>
-    <button class="icon-button" data-later="Profil" aria-label="Profil" data-icon="user"></button>
+    <a class="logo" href="/"><img src="/static/img/wordmark-header.jpg" alt="RAP-LAB"></a>
+    <button class="icon-button" data-view="profil" aria-label="Profil" data-icon="user"></button>
   </header>
 
   <nav class="tabs">
-    <button data-view="entdecken" class="active">Entdecken</button>
+    <button data-view="entdecken">Entdecken</button>
     <button data-view="anzeige">Anzeige</button>
     <button data-open-sheet>Inserieren</button>
   </nav>
 
   <main>
-    <!-- Entdecken -->
+    <!-- Entdecken und Favoriten (gleiche Ansicht, Favoriten zeigt nur Gemerktes) -->
     <section id="view-entdecken" class="view">
       <p class="kicker">Dein Sound. Deine Leute.</p>
-      <h1>Was fehlt deinem Projekt?</h1>
+      <h1 id="explore-title">Was fehlt deinem Projekt?</h1>
 
       <label class="search">
         <span data-icon="search"></span>
-        <input id="search" type="search" placeholder="Beats, Mixing, Features …">
-        <span class="muted-icon" data-icon="sliders"></span>
+        <input id="search" type="search" placeholder="Beats, Mixing, Features …" aria-label="Beispielanzeigen durchsuchen">
+        <button type="button" class="filter-toggle" data-toggle-filters aria-label="Filter anzeigen" data-icon="sliders"></button>
       </label>
 
       <div class="place-row">
-        <span class="place"><span data-icon="pin"></span>Deutschland &amp; Remote</span>
+        <button type="button" class="place" data-toggle-filters>
+          <span data-icon="pin"></span>Deutschland &amp; Remote<span data-icon="chevron"></span>
+        </button>
         <span class="hint">Beispielansicht</span>
+      </div>
+
+      <div id="filters" class="filter-panel" hidden>
+        <p>Standort und Radius sind noch nicht angebunden.</p>
+        <label><input id="remote-only" type="checkbox"> Nur Remote-Beispiele</label>
       </div>
 
       <div id="categories" class="categories"></div>
 
       <div class="section-head">
-        <h2>Entdecke Möglichkeiten</h2>
+        <h2 id="results-title">Entdecke Möglichkeiten</h2>
         <span id="count" class="hint"></span>
       </div>
       <div id="cards" class="cards"></div>
+      <div id="empty" class="empty-state" hidden>
+        <span data-icon="heart"></span>
+        <h2>Hier ist noch Platz.</h2>
+        <p>Andere Kategorie wählen oder ein Beispiel vormerken. Es werden keine Nutzerdaten gespeichert.</p>
+      </div>
+
+      <p class="caption">Zeig, was du kannst. Finde, was dir fehlt.</p>
     </section>
 
     <!-- Anzeige -->
@@ -58,22 +72,24 @@
       <div id="detail"></div>
     </section>
 
-    <!-- Noch nicht gebaut -->
-    <section id="view-later" class="view later" hidden>
-      <h1 id="later-title"></h1>
-      <p>Folgt in Etappe 2.</p>
+    <!-- Nachrichten und Profil: kommen mit der Anmeldung in Etappe 2 -->
+    <section id="view-info" class="view info" hidden>
+      <img class="crown" src="/static/img/krone.jpg" alt="RAP-LAB Krone">
+      <h1 id="info-title"></h1>
+      <p>Anmeldung und echte Daten werden in der nächsten Etappe angebunden. Es gibt keinen Demo-Nutzer und keine Anmeldung durch diesen Entwurf.</p>
+      <button class="primary" data-view="entdecken">Zum Designentwurf</button>
     </section>
   </main>
 
-  <nav class="bottom">
-    <button data-view="entdecken" class="active"><span data-icon="search"></span>Entdecken</button>
-    <button data-later="Favoriten"><span data-icon="heart"></span>Favoriten</button>
+  <nav class="bottom" aria-label="Hauptbereiche">
+    <button data-view="entdecken"><span data-icon="search"></span>Entdecken</button>
+    <button data-view="favoriten"><span data-icon="heart"></span>Favoriten</button>
     <button data-open-sheet><span data-icon="plus"></span>Inserieren</button>
-    <button data-later="Nachrichten"><span data-icon="chat"></span>Nachrichten</button>
-    <button data-later="Profil"><span data-icon="user"></span>Profil</button>
+    <button data-view="nachrichten"><span data-icon="chat"></span>Nachrichten</button>
+    <button data-view="profil"><span data-icon="user"></span>Profil</button>
   </nav>
 
-  <!-- Inserieren: oeffnet sich ueber der Seite, schliesst mit X oder Esc -->
+  <!-- Inserieren: oeffnet sich ueber der Seite, schliesst mit X, Esc oder Klick daneben -->
   <div id="sheet" class="sheet" hidden>
     <form id="listing-form" class="sheet-panel">
       <button type="button" class="icon-button close" data-close-sheet aria-label="Schließen" data-icon="close"></button>
@@ -86,11 +102,11 @@
         <label><input type="radio" name="kind" value="suche"><span>Ich suche</span></label>
       </div>
 
-      <div class="upload">
+      <button type="button" class="upload" data-notice="Bilder-Upload folgt in Etappe 2.">
         <span data-icon="image"></span>
         <strong>Bilder hinzufügen</strong>
         <span class="hint">Upload folgt in Etappe 2</span>
-      </div>
+      </button>
 
       <label class="field">Titel *
         <input name="title" required maxlength="80" placeholder="Zum Beispiel: Mix &amp; Master für deinen Song">
@@ -101,31 +117,35 @@
       </label>
 
       <label class="field">Beschreibung *
-        <textarea name="description" required rows="4" placeholder="Was bietest du an, was suchst du genau?"></textarea>
+        <textarea name="description" required rows="5" maxlength="4000" placeholder="Was bietest oder suchst du? Was ist enthalten?"></textarea>
       </label>
 
       <div class="price-row">
-        <label class="field">Preis in €
-          <input name="price" type="number" min="0" step="1" placeholder="50">
-        </label>
-        <label class="field">Einheit
-          <select name="unit">
-            <option>PLATZHALTER</option>
+        <label class="field">Preisart
+          <select name="priceType" id="price-type">
+            <option value="fixed">Festpreis</option>
+            <option value="from">Ab-Preis</option>
+            <option value="negotiable">Verhandelbar</option>
+            <option value="request">Auf Anfrage</option>
+            <option value="collab">Zusammenarbeit</option>
           </select>
+        </label>
+        <label class="field" id="amount-field">Betrag in €
+          <input name="amount" inputmode="decimal" placeholder="50,00">
         </label>
       </div>
 
-      <label class="field">Ort
-        <input name="place" placeholder="Zum Beispiel: Mannheim">
+      <label class="field">Standort
+        <input name="place" placeholder="Ort oder PLZ">
       </label>
-      <label class="check"><input type="checkbox" name="remote" checked> Auch Remote möglich</label>
+      <label class="check"><input type="checkbox" name="remote" checked> Auch remote möglich</label>
 
       <button type="submit" class="primary">Anzeige aufgeben</button>
-      <p class="hint center">Entwurf: Die Anzeige erscheint nur in dieser Ansicht und wird nicht gespeichert.</p>
+      <p class="hint center">Entwurf: Die Anzeige erscheint nur in dieser Ansicht und wird weder gespeichert noch übertragen.</p>
     </form>
   </div>
 
-  <div id="toast" class="toast" hidden></div>
+  <div id="toast" class="toast" role="status" hidden></div>
 </div>
 <script src="/static/connect.js"></script>
 </body>

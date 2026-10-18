@@ -1,5 +1,39 @@
-/* RAP-LAB Markenfarben — gelten fuer die ganze Seite (hub/rules/09-lab-studio-mvp-plan.md).
-   Quelle: LAB-STUDIO-Prototyp, passend zum Neon-Kronen-Logo. */
+/* RAP-LAB Markenfarben und Schrift — gelten fuer die ganze Seite (hub/rules/12-brand-spec.md).
+   Farben: LAB-STUDIO-Prototyp, passend zum Neon-Kronen-Logo.
+   Schrift: Manrope (SIL Open Font License, fonts/manrope-OFL.txt), lokal ausgeliefert. */
+
+@font-face {
+  font-family: "Manrope";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(/static/fonts/manrope-latin-400-normal.woff2) format("woff2");
+}
+
+@font-face {
+  font-family: "Manrope";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(/static/fonts/manrope-latin-500-normal.woff2) format("woff2");
+}
+
+@font-face {
+  font-family: "Manrope";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(/static/fonts/manrope-latin-600-normal.woff2) format("woff2");
+}
+
+@font-face {
+  font-family: "Manrope";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(/static/fonts/manrope-latin-700-normal.woff2) format("woff2");
+}
+
 :root {
   --bg: #000000;
   --fg: #FFFFFF;
@@ -7,5 +41,5 @@
   --gold: #C2B198;
   --brown: #543824;
   --error: #FF6B6B;
-  --font: system-ui, sans-serif;
+  --font: "Manrope", system-ui, sans-serif;
 }

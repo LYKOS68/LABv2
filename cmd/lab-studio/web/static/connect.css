@@ -81,14 +81,14 @@ button {
 
 .logo {
   display: block;
-  padding: 6px 12px;
   border-radius: 6px;
-  background: linear-gradient(rgba(0, 0, 0, .1), rgba(0, 0, 0, .1)), url(/static/img/leder-hintergrund.jpg) center/cover;
+  overflow: hidden;
   line-height: 0;
 }
 
 .logo img {
-  height: 44px;
+  display: block;
+  height: 60px;
   width: auto;
 }
 
@@ -265,16 +265,7 @@ h2 {
 
 .card {
   align-self: start;
-  background: none;
-  border: none;
-  padding: 0;
-  text-align: left;
-  color: var(--fg);
-}
-
-.empty {
-  grid-column: 1 / -1;
-  color: var(--muted);
+  cursor: pointer;
 }
 
 /* Bild-Platzhalter: Kachel und Galerie */
@@ -322,9 +313,20 @@ h2 {
 
 .heart {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 4px;
+  right: 4px;
+  padding: 8px;
+  background: none;
+  border: none;
   color: var(--gold);
+}
+
+.saved {
+  color: var(--neon);
+}
+
+.saved svg {
+  fill: currentColor;
 }
 
 .card-place {
@@ -462,10 +464,29 @@ h2 {
   color: var(--neon);
 }
 
-.later {
+/* Nachrichten und Profil */
+.info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 24px 4px;
   text-align: center;
-  padding-top: 40px;
+}
+
+.info p {
+  max-width: 420px;
   color: var(--muted);
+  line-height: 1.7;
+}
+
+.info .primary {
+  max-width: 340px;
+}
+
+.crown {
+  width: 140px;
+  height: auto;
 }
 
 /* ── Inserieren ── */
@@ -522,6 +543,8 @@ h2 {
 }
 
 .upload {
+  width: 100%;
+  background: none;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -707,13 +730,8 @@ h2 {
   }
 
   #detail .gallery {
-    grid-column: 1;
-    grid-row: 1 / span 6;
-    margin: 0;
-  }
-
-  #detail > :not(.gallery) {
-    grid-column: 2;
+    position: sticky;
+    top: 24px;
   }
 
   #detail .detail-row {
@@ -724,7 +742,14 @@ h2 {
     font-size: 32px;
   }
 
-  #detail .primary {
+  .detail-action {
+    position: static;
+    padding: 0;
+    border: none;
+    background: none;
+  }
+
+  .detail-action .primary {
     width: auto;
     padding: 14px 28px;
   }
@@ -750,5 +775,150 @@ h2 {
 
   .toast {
     bottom: 32px;
+  }
+}
+
+/* ── Ergaenzungen nach dem Original-Prototyp ── */
+
+.filter-toggle {
+  display: flex;
+  padding: 4px;
+  background: none;
+  border: none;
+  color: var(--gold);
+}
+
+.place-row .place {
+  padding: 0;
+  background: none;
+  border: none;
+}
+
+.filter-panel {
+  margin: -8px 0 20px;
+  padding: 14px 16px;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.filter-panel p {
+  margin: 0 0 10px;
+}
+
+.filter-panel label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--neon);
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--gold);
+}
+
+.empty-state p {
+  max-width: 380px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.caption {
+  margin: 36px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.card-price small,
+.price small {
+  font-weight: normal;
+  color: var(--muted);
+}
+
+.detail-section {
+  margin-bottom: 24px;
+}
+
+.detail-section h2 {
+  margin-bottom: 10px;
+}
+
+.link-row,
+.provider {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  background: none;
+  color: var(--gold);
+  text-align: left;
+}
+
+.link-row > span:nth-child(2),
+.provider-text {
+  flex: 1;
+}
+
+.provider {
+  margin-bottom: 8px;
+}
+
+.provider-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--fg);
+}
+
+.provider-text span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.avatar {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--card-light);
+}
+
+.fine-print {
+  margin: 16px 0 24px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* Handy: Nachricht-Knopf fest unten, dafuer keine untere Leiste auf der Anzeige */
+@media (max-width: 899px) {
+  .detail-action {
+    position: sticky;
+    bottom: 0;
+    margin: 0 -20px -32px;
+    padding: 14px 20px;
+    border-top: 1px solid var(--line-soft);
+    background: var(--panel);
+  }
+
+  .app[data-view="anzeige"] .bottom {
+    display: none;
   }
 }

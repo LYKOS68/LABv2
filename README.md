@@ -1,50 +1,75 @@
-# LABv2
+# RAP-LAB
 
-RAP-LAB — Go-Fullstack-Homepage mit Registrierung/Login/Logout/Account-Löschen.
+**Musik passiert nicht nur im Studio.** RAP-LAB holt an einen Ort, was sonst über Handy-Notizen, Instagram, Discord und 40 Chats verteilt ist — von der ersten Line bis zur Zusammenarbeit. Zweck und Ausbauplan: `hub/rules/13-zweck-und-vision.md`.
 
-## Start
+Eine Go-Webanwendung, ein Programm, eine SQLite-Datenbank. Kein JavaScript-Framework, kein Build-Schritt.
+
+## Starten
 
 ```
 go run ./cmd/lab-studio
 ```
 
-Läuft auf `http://127.0.0.1:8090`. Alternativ VS Code: Terminal → Run Task → „RAP-LAB: Server starten".
+Dann im Browser: **http://127.0.0.1:8090**. Alternativ in VS Code: Terminal → Run Task → „RAP-LAB: Server starten". Beenden mit `Strg+C`.
 
-## Geprüfter Stand
+> Nach jeder Code-Änderung den Server neu starten — `go run` übersetzt den Code nur beim Start.
 
-- Homepage (Text-Platzhalter statt Bild-Assets), Registrierung, Login, Logout, Account-Löschung — funktional getestet.
-- Passwörter via Argon2id gehasht (PHC-Format, OWASP-Mindestparameter m=19456 KiB, t=2, p=1), nie im Klartext gespeichert. Korrupte/fremde Hash-Strings führen zu Fehler statt Absturz.
-- Nutzerdaten in SQLite (`data/raplab.sqlite`) — **persistent**, bewiesen durch Neustart-Test. Sessions bleiben bewusst in-memory.
-- CSRF-Schutz auf allen Mutationen (Register/Login/Logout/Delete-Account): Synchronizer-Token gegen HttpOnly-Cookie, 30 Minuten gültig, zeitkonstanter Vergleich. Fehlendes/falsches Token → 403.
-- Rate-Limiting auf Register/Login: max. 5 Versuche pro 10 Minuten pro IP, danach `429` + `Retry-After`. In-Memory, begrenzte Map (max. 10.000 Schlüssel).
+## Was die Seite kann (Stand: Tag `stand-2026-10-18`)
 
-- LAB-STUDIO unter `/studio` (nur angemeldet): verschiebbare/zoombare Arbeitsfläche, Notizen (speichern automatisch), SONGS-Fenster mit „Neuer Song", Editor mit Speichern/Strg+S. Jedes Konto startet leer und sieht nur seine eigenen Daten. Siehe `hub/rules/09-lab-studio-mvp-plan.md`.
-- Markenfarben (Schwarz, Neongrün `#ACE182`, Gold `#C2B198`, Braun `#543824`) für die ganze Seite in `cmd/lab-studio/web/static/brand.css`.
-- Passwort vergessen: Link auf der Anmeldeseite, 1 h gültiger Einmal-Link per Mail, beendet alle offenen Sitzungen. Siehe `hub/rules/08-passwort-vergessen-plan.md`.
-- E-Mail-Bestätigung: Nach der Registrierung kann man sich erst anmelden, wenn man den Link aus der Mail geöffnet hat (24 h gültig, einmalig, „erneut senden" auf der Anmeldeseite). Ohne Mail-Dienst steht der Link im Server-Konsolenfenster. Für echten Versand vor dem Start setzen: `SMTP_HOST`, `SMTP_PORT` (Standard 587), `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`, `BASE_URL`. Siehe `hub/rules/07-email-verifikation-plan.md`.
+| Bereich | Adresse | Stand |
+|---|---|---|
+| **Startseite** | `/` | im Markendesign: Neon-Krone, Gold-Schriftzug, Leder-Hintergrund — Handy und PC. Roman: „noch nicht fertig" |
+| **Konto** | `/register`, `/login`, `/forgot-password` | Registrieren mit E-Mail-Bestätigung, Anmelden, Passwort vergessen, Abmelden, Konto löschen |
+| **LAB-STUDIO** | `/studio` (nur angemeldet) | verschiebbare, zoombare Arbeitsfläche; Notizen (speichern automatisch); SONGS-Fenster mit „Neuer Song"; Lyrics-Editor (Speichern / Strg+S). Jedes Konto startet leer und sieht nur seine eigenen Daten |
+| **LAB-CONNECT** | `/connect` | **Oberflächen-Prototyp** nach dem Original-Entwurf: Entdecken mit Suche, Kategorien und Filter, Merkliste, Anzeige-Seite, Inserieren-Fenster. Arbeitet mit Beispielanzeigen, **speichert noch nichts** |
 
-Damit sind alle vier Schritte aus `hub/rules/02-sicherheitserweiterungen-plan.md` umgesetzt.
+### Sicherheit
 
-`cmd/lab-studio/main.go` ist auf reines Wiring reduziert (25 Zeilen); die Logik liegt in sieben nach Funktionsachse getrennten Dateien im selben Package — siehe `hub/rules/05-main-go-zerlegung.md` für die Begründung je Datei und `hub/rules/CONTRACT.md` für den vollständigen Pfadvertrag.
+- Passwörter mit Argon2id (OWASP-Mindestparameter), nie im Klartext
+- CSRF-Schutz auf allen Schreibzugriffen (Formulare und Studio-Schnittstelle)
+- Rate-Limiting: max. 5 Versuche pro 10 Minuten und IP bei Registrieren, Anmelden, Links anfordern
+- E-Mail- und Passwort-Links: zufällig, einmalig, befristet (24 h / 1 h), in der Datenbank nur als Hash
+- LAB-STUDIO: jede Datenbankabfrage an das angemeldete Konto gebunden — per Test geprüft, dass ein zweites Konto fremde Songs weder sieht noch ändert
 
-## Tests
+### E-Mails
+
+Ohne Mail-Dienst stehen Bestätigungs- und Passwort-Links im **Server-Konsolenfenster** (Zeile beginnt mit `[mail]`). Für echten Versand einmalig vor dem Start setzen: `SMTP_HOST`, `SMTP_PORT` (Standard 587), `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`, `BASE_URL`.
+
+## Marke
+
+Farben, Schrift, Logos und ihre Regeln: `hub/rules/12-brand-spec.md`.
+
+- Farben: Schwarz, Weiß, Neongrün `#ACE182`, Gold `#C2B198`, Braun `#543824` — einmal in `cmd/lab-studio/web/static/brand.css`
+- Schrift: Manrope (lokal, SIL Open Font License)
+- Originalbilder unverändert in `hub/brand/originale/`, Design-Vorlagen in `hub/brand/referenzen/`
+
+## Prüfen
 
 ```
 go test ./...
 ```
 
-Deckt ab: Argon2id-Hash/Verify-Rundlauf, Korrupt-Hash-Handling (kein Panic), Rate-Limiter-Grenzen.
+37 Tests (Konto, E-Mail- und Passwort-Links, Studio inkl. Konto-Trennung, Connect, Startseite, Schrift). Bei sicherheitskritischen Prüfungen wurde jeweils gegengeprobt, dass der Test rot wird, wenn die Prüfung im Code fehlt. GitHub führt bei jedem Push `gofmt`, `go vet` und alle Tests automatisch aus (`.github/workflows/test.yml`).
 
-## Offene LÜCKEN
+## Wo was liegt
 
-- Siehe `hub/rules/01-spezifikation.md` §4: exakte Hex-Farbwerte, Font-Namen, freigestellte Logo-/Signature-Assets fehlen noch (aktuell Text-Platzhalter statt Bild).
-- `logs/` hat keine tatsächliche Schreibanbindung im Code (nur `log.Println` nach stdout).
+```
+cmd/lab-studio/        das Programm (ein Go-Paket, nach Themen in Dateien getrennt)
+  web/                 Seiten, CSS, JavaScript, Bilder, Schrift — ins Programm eingebaut
+data/                  Datenbank, entsteht beim ersten Start, nie auf GitHub
+hub/                   alles, was kein Programm ist
+  rules/               Pläne, Verträge, Spezifikationen (nummeriert, werden nicht überschrieben)
+  brand/               Marken-Originale und Design-Vorlagen
+  drafts/              Ideen ohne Bauauftrag
+  agent-docs/          Einstieg für jede KI, die hier arbeitet
+```
 
-## Verzeichnisstruktur und Zuständigkeiten
+Verbindlicher Pfadvertrag: `hub/rules/CONTRACT.md`. Datei-für-Datei-Inventar: `hub/rules/14-verzeichnisinventar.md`. Wer was bedient: `hub/rules/04-arbeitsvertraege.md`.
 
-Zwei Wurzeln: `cmd/`+`data/`+`logs/` (Runtime/Code) und `hub/` (Regeln, Wissen, Agent-Koordination). Details:
+## Offen
 
-- `hub/rules/CONTRACT.md` — verbindlicher Pfadvertrag (zwei Wurzeln, vier Regeln + interner Vertrag für `cmd/lab-studio/`)
-- `hub/rules/03-verzeichnisinventar.md` — vollständiges Datei-für-Datei-Inventar (Eigentümer/Schreiber/Leser/Prüfverfahren)
-- `hub/rules/04-arbeitsvertraege.md` — was die KI automatisch ausführt vs. was Roman selbst im Terminal/Browser starten muss
-- `hub/README.md` — Einstieg in die zweite Wurzel (Drafts, Agent-Koordination)
+- **LAB-CONNECT** speichert noch nichts: Anzeigen in der Datenbank, echte Filter nach Ort, Bilder, Nachrichten, Profile (`hub/rules/11-lab-connect-mvp-plan.md`)
+- **LAB-STUDIO**: Songs löschen/umbenennen, Released/Drafts, Reimbuch, Relatable Bars, 1-2-1-2-Baukasten (`hub/rules/13-zweck-und-vision.md` §5)
+- **Online gehen**: Server-Anbieter, Domain, Mail-Dienst
+- Offene Fragen an Roman: `12-brand-spec.md` §6 und `13-zweck-und-vision.md` §7
+- `logs/` hat keine Schreibanbindung (Server schreibt nur ins Konsolenfenster)

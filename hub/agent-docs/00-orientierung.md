@@ -15,7 +15,15 @@ Knapp, kein Prosa-Dump. Die volle Methodik (ARBEITSWEISE.md, zusammenarbeit-gese
 
 ## Aktueller Projektstand (kurz)
 
-Go-Fullstack-Webserver (`cmd/lab-studio/`), eine Homepage, Registrierung/Login/Logout/Account-Löschung. SQLite-Persistenz, Argon2id-Hashing, CSRF-Schutz, Rate-Limiting — alle vier geprüft und eingefroren (`hub/rules/02-sicherheitserweiterungen-plan.md`). Start: `go run ./cmd/lab-studio`, läuft auf `127.0.0.1:8090`.
+Stand 2026-10-18 (Tag `stand-2026-10-18`). Go-Webanwendung (`cmd/lab-studio/`), SQLite, kein JS-Framework. Start: `go run ./cmd/lab-studio` → `127.0.0.1:8090`.
+
+- **Startseite** im Markendesign (`10`), **Konto** mit E-Mail-Bestätigung und Passwort vergessen (`07`, `08`), Sicherheit (`02`)
+- **LAB-STUDIO** `/studio`: Arbeitsfläche, Notizen, Songs, Lyrics-Editor — pro Konto, leer zum Start (`09`)
+- **LAB-CONNECT** `/connect`: Oberflächen-Prototyp, Beispieldaten, speichert nichts (`11`)
+- Marke: `12-brand-spec.md`, Originale in `hub/brand/`. Zweck und Ausbauplan: `13-zweck-und-vision.md`. Inventar: `14-verzeichnisinventar.md`
+- 37 Tests; GitHub prüft bei jedem Push automatisch
+
+Roman liest Code mit und achtet auf Lesbarkeit: kurze Funktionen, eine Prüfung pro Zeile, nichts doppelt kopieren. Antworten an Roman in einfacher Sprache.
 
 ## Dateien in `hub/`
 
