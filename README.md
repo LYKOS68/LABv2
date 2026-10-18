@@ -1,4 +1,6 @@
-# RAP-LAB
+# BRANCH : termux-pull : HIER LADE ICH VON UNTERWEGS ÜBERS HANDY PULL + VERBESSERUNG REIN UND KANN SIE SPÄTER VOM PC WIEDER LADEN:
+
+#RAP-LAB
 
 **Musik passiert nicht nur im Studio.**
 
