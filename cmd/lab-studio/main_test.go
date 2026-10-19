@@ -477,3 +477,17 @@ func TestHomeShowsBrandImages(t *testing.T) {
 		}
 	}
 }
+
+// --- Routen ---------------------------------------------------------------------------------
+
+func TestRoutesRejectWrongMethodAndUnknownPath(t *testing.T) {
+	web := newBrowser(t, newTestStore(t))
+	for _, path := range []string{"/logout", "/delete-account", "/resend-verification"} {
+		status, body := web.call(http.MethodGet, path, "", nil)
+		expectStatus(t, status, http.StatusMethodNotAllowed, body)
+	}
+	status, body := web.call(http.MethodPost, "/verify", "", nil)
+	expectStatus(t, status, http.StatusMethodNotAllowed, body)
+	status, body = web.call(http.MethodGet, "/gibt-es-nicht", "", nil)
+	expectStatus(t, status, http.StatusNotFound, body)
+}

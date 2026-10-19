@@ -19,10 +19,6 @@ func currentUser(r *http.Request, store *Store) (*User, string, bool) {
 
 func homeHandler(store *Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
-			http.NotFound(w, r)
-			return
-		}
 		u, _, loggedIn := currentUser(r, store)
 		data := pageData{LoggedIn: loggedIn}
 		if loggedIn {
@@ -48,14 +44,6 @@ func sendVerification(store *Store, mailer *Mailer, email string) {
 // forgotPasswordHandler antwortet immer gleich, egal ob die E-Mail existiert.
 func forgotPasswordHandler(store *Store, limiter *RateLimiter, mailer *Mailer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet {
-			render(w, r, store, "content-forgot", pageData{})
-			return
-		}
-		if r.Method != http.MethodPost {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
 		if !checkCSRF(w, r, store) {
 			return
 		}
@@ -75,18 +63,23 @@ func forgotPasswordHandler(store *Store, limiter *RateLimiter, mailer *Mailer) h
 	}
 }
 
-// resetPasswordHandler zeigt beim GET nur das Formular; der Token wird erst beim POST
-// mit gueltigem neuem Passwort verbraucht (Mail-Scanner oeffnen Links vorab).
+// pageHandler zeigt eine Seite ohne eigene Daten, z.B. ein leeres Formular.
+func pageHandler(store *Store, contentName string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		render(w, r, store, contentName, pageData{})
+	}
+}
+
+// resetPasswordPageHandler zeigt nur das Formular; der Token wird erst beim POST mit
+// gueltigem neuem Passwort verbraucht (Mail-Scanner oeffnen Links vorab).
+func resetPasswordPageHandler(store *Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		render(w, r, store, "content-reset", pageData{Token: r.URL.Query().Get("token")})
+	}
+}
+
 func resetPasswordHandler(store *Store, limiter *RateLimiter) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet {
-			render(w, r, store, "content-reset", pageData{Token: r.URL.Query().Get("token")})
-			return
-		}
-		if r.Method != http.MethodPost {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
 		if !checkCSRF(w, r, store) {
 			return
 		}
@@ -111,14 +104,6 @@ func resetPasswordHandler(store *Store, limiter *RateLimiter) http.HandlerFunc {
 
 func registerHandler(store *Store, limiter *RateLimiter, mailer *Mailer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet {
-			render(w, r, store, "content-register", pageData{})
-			return
-		}
-		if r.Method != http.MethodPost {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
 		if !checkCSRF(w, r, store) {
 			return
 		}
@@ -143,10 +128,6 @@ func registerHandler(store *Store, limiter *RateLimiter, mailer *Mailer) http.Ha
 
 func verifyHandler(store *Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
 		if err := store.VerifyEmail(r.URL.Query().Get("token")); err != nil {
 			if err != errInvalidToken {
 				log.Printf("verify email: %v", err)
@@ -162,10 +143,6 @@ func verifyHandler(store *Store) http.HandlerFunc {
 // sich darueber nicht herausfinden laesst, welche Adressen registriert sind.
 func resendVerificationHandler(store *Store, limiter *RateLimiter, mailer *Mailer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
 		if !checkCSRF(w, r, store) {
 			return
 		}
@@ -182,14 +159,6 @@ func resendVerificationHandler(store *Store, limiter *RateLimiter, mailer *Maile
 
 func loginHandler(store *Store, limiter *RateLimiter) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet {
-			render(w, r, store, "content-login", pageData{})
-			return
-		}
-		if r.Method != http.MethodPost {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
 		if !checkCSRF(w, r, store) {
 			return
 		}
@@ -221,10 +190,6 @@ func loginHandler(store *Store, limiter *RateLimiter) http.HandlerFunc {
 
 func logoutHandler(store *Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
 		if !checkCSRF(w, r, store) {
 			return
 		}
@@ -238,10 +203,6 @@ func logoutHandler(store *Store) http.HandlerFunc {
 
 func deleteAccountHandler(store *Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
 		if !checkCSRF(w, r, store) {
 			return
 		}
