@@ -1,9 +1,23 @@
 package main
 
 import (
+	"database/sql"
+	"embed"
+	"html/template"
+	"io/fs"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
+	"sync"
+
+	_ "modernc.org/sqlite"
 )
+
+// web/ wird ins Programm eingebaut: HTML-Vorlagen und static/ als Dateien unter /static/.
+//
+//go:embed web
+var webFiles embed.FS
 
 func main() {
 	store, err := newStore("data/raplab.sqlite")
@@ -47,4 +61,91 @@ func newMux(store *Store, limiter *RateLimiter, mailer *Mailer) *http.ServeMux {
 	mux.HandleFunc("POST /studio/api/fields", studioAPI(store, handleCreateField(store)))
 	mux.HandleFunc("PATCH /studio/api/fields/{id}", studioAPI(store, handleUpdateField(store)))
 	return mux
+}
+
+// Store haelt die Datenbank. Konto- und Studio-Abfragen haengen als Methoden in auth.go und studio.go.
+type Store struct {
+	db       *sql.DB
+	mu       sync.Mutex
+	sessions map[string]string    // token -> lowercase email, in-memory (nicht persistiert)
+	csrf     map[string]csrfEntry // cookie-id -> Token+Ablauf, in-memory
+}
+
+func newStore(dbPath string) (*Store, error) {
+	if err := os.MkdirAll(filepath.Dir(dbPath), 0o700); err != nil {
+		return nil, err
+	}
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
+		return nil, err
+	}
+	if _, err := db.Exec("PRAGMA busy_timeout=5000"); err != nil {
+		return nil, err
+	}
+	if err := createAuthTables(db); err != nil {
+		return nil, err
+	}
+	if err := createStudioTables(db); err != nil {
+		return nil, err
+	}
+	return &Store{db: db, sessions: make(map[string]string), csrf: make(map[string]csrfEntry)}, nil
+}
+
+// ── Seiten ──────────────────────────────────────────────────────────────────────────────────────
+
+func staticFiles() http.Handler {
+	static, err := fs.Sub(webFiles, "web/static")
+	if err != nil {
+		panic(err)
+	}
+	return http.StripPrefix("/static/", http.FileServer(http.FS(static)))
+}
+
+// Startseite und Konto-Seiten: layout.html ist der Rahmen, home.html und auth.html liefern
+// die Inhalte als {{define "content-..."}}-Bloecke.
+var tpl = template.Must(template.ParseFS(webFiles, "web/layout.html", "web/home.html", "web/auth.html"))
+
+type pageData struct {
+	LoggedIn   bool
+	Email      string
+	Error      string
+	CSRFToken  string
+	ShowResend bool
+	Token      string
+}
+
+func render(w http.ResponseWriter, r *http.Request, store *Store, contentName string, data pageData) {
+	data.CSRFToken = csrfTokenFor(w, r, store)
+	clone, err := tpl.Clone()
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	clone = template.Must(clone.Parse(`{{define "content"}}{{template "` + contentName + `" .}}{{end}}`))
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := clone.ExecuteTemplate(w, "layout", data); err != nil {
+		log.Printf("render error: %v", err)
+	}
+}
+
+func homeHandler(store *Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		u, _, loggedIn := currentUser(r, store)
+		data := pageData{LoggedIn: loggedIn}
+		if loggedIn {
+			data.Email = u.Email
+		}
+		render(w, r, store, "content-home", data)
+	}
+}
+
+// LAB-CONNECT ist vorerst ein reiner Oberflaechen-Prototyp:
+// die Seite laeuft komplett im Browser mit Beispielanzeigen und schickt nichts an den Server.
+func connectPageHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFileFS(w, r, webFiles, "web/connect.html")
+	}
 }
