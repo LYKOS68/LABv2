@@ -535,3 +535,79 @@ func TestManropeFontIsServedLocally(t *testing.T) {
 		}
 	}
 }
+
+// --- Sitzungen und CSRF in der Datenbank ----------------------------------------------------
+
+func TestSessionAndCSRFSurviveRestart(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "restart.sqlite")
+	first, err := newStore(path)
+	if err != nil {
+		t.Fatalf("newStore: %v", err)
+	}
+	if err := first.CreateUser("a@example.com", "sicheres1"); err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	session, err := first.CreateSession("a@example.com")
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	cookieID, csrfToken, err := first.NewCSRFToken()
+	if err != nil {
+		t.Fatalf("csrf token: %v", err)
+	}
+	first.db.Close()
+
+	second, err := newStore(path)
+	if err != nil {
+		t.Fatalf("reopen: %v", err)
+	}
+	defer second.db.Close()
+	if _, ok := second.UserByToken(session); !ok {
+		t.Fatal("session lost after restart")
+	}
+	if !second.ValidateCSRF(cookieID, csrfToken) {
+		t.Fatal("csrf token lost after restart")
+	}
+}
+
+func TestExpiredSessionIsRejected(t *testing.T) {
+	store := newTestStore(t)
+	store.CreateUser("a@example.com", "sicheres1")
+	session, _ := store.CreateSession("a@example.com")
+	if _, err := store.db.Exec("UPDATE sessions SET expires_at = ?", time.Now().Add(-time.Minute).Unix()); err != nil {
+		t.Fatalf("expire session: %v", err)
+	}
+	if _, ok := store.UserByToken(session); ok {
+		t.Fatal("expired session still accepted")
+	}
+}
+
+// Abgelaufene CSRF-Tokens werden beim naechsten neuen Token weggeraeumt (frueher wuchs die Map endlos).
+func TestExpiredCSRFTokensAreCleanedUp(t *testing.T) {
+	store := newTestStore(t)
+	for range 3 {
+		store.NewCSRFToken()
+	}
+	if _, err := store.db.Exec("UPDATE csrf_tokens SET expires_at = ?", time.Now().Add(-time.Minute).Unix()); err != nil {
+		t.Fatalf("expire tokens: %v", err)
+	}
+	store.NewCSRFToken()
+	var n int
+	store.db.QueryRow("SELECT COUNT(*) FROM csrf_tokens").Scan(&n)
+	if n != 1 {
+		t.Fatalf("expected 1 csrf token after cleanup, got %d", n)
+	}
+}
+
+func TestSessionsOnTwoDevices(t *testing.T) {
+	store := newTestStore(t)
+	store.CreateUser("a@example.com", "sicheres1")
+	phone, _ := store.CreateSession("a@example.com")
+	pc, _ := store.CreateSession("a@example.com")
+	if _, ok := store.UserByToken(phone); !ok {
+		t.Fatal("first session ended by second login")
+	}
+	if _, ok := store.UserByToken(pc); !ok {
+		t.Fatal("second session not valid")
+	}
+}

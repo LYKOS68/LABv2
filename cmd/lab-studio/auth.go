@@ -27,13 +27,18 @@ import (
 // Alles rund ums Konto: Registrieren mit Mail-Bestaetigung, Anmelden, Passwort vergessen,
 // Konto loeschen - samt Sitzungen, CSRF-Schutz, Rate-Limit, Passwort-Hashing und Mailversand.
 
-// Tabellen fuer Einmal-Links per Mail. Nur diese festen Namen gehen in SQL-Strings ein.
+// Token-Tabellen: Einmal-Links per Mail und Anmelde-Sitzungen haben dieselbe Form
+// (Hash, E-Mail, Ablauf). Nur diese festen Namen gehen in SQL-Strings ein.
 const (
 	verificationTable = "email_verifications"
 	resetTable        = "password_resets"
+	sessionTable      = "sessions"
 	verificationTTL   = 24 * time.Hour
 	resetTTL          = 1 * time.Hour
+	sessionTTL        = 14 * 24 * time.Hour
 )
+
+var tokenTables = []string{verificationTable, resetTable, sessionTable}
 
 var (
 	errAccountExists      = errors.New("Konto mit dieser E-Mail existiert bereits.")
@@ -57,7 +62,7 @@ func createAuthTables(db *sql.DB) error {
 	if err := migrateVerifiedColumn(db); err != nil {
 		return err
 	}
-	for _, table := range []string{verificationTable, resetTable} {
+	for _, table := range tokenTables {
 		if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS ` + table + ` (
 			token_hash TEXT PRIMARY KEY,
 			email TEXT NOT NULL COLLATE NOCASE,
@@ -66,7 +71,13 @@ func createAuthTables(db *sql.DB) error {
 			return err
 		}
 	}
-	return nil
+	// CSRF-Tokens gehoeren zu einem Browser (Cookie-ID), nicht zu einem Konto.
+	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS csrf_tokens (
+		id_hash TEXT PRIMARY KEY,
+		token TEXT NOT NULL,
+		expires_at INTEGER NOT NULL
+	)`)
+	return err
 }
 
 // migrateVerifiedColumn fuegt users.verified hinzu, falls es fehlt. Konten, die schon vor
@@ -255,6 +266,7 @@ func loginHandler(store *Store, limiter *RateLimiter) http.HandlerFunc {
 			Path:     "/",
 			HttpOnly: true,
 			SameSite: http.SameSiteLaxMode,
+			MaxAge:   int(sessionTTL.Seconds()),
 		})
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	}
@@ -339,16 +351,25 @@ func (s *Store) Authenticate(email, password string) (*User, error) {
 // createToken erzeugt einen Einmal-Token fuer email in table und ersetzt aeltere derselben Adresse.
 // In der DB liegt nur der SHA-256-Hash; der Klartext-Token geht ausschliesslich in den Link.
 func (s *Store) createToken(table, email string, ttl time.Duration) (string, error) {
+	if _, err := s.db.Exec("DELETE FROM "+table+" WHERE email = ? COLLATE NOCASE", email); err != nil {
+		return "", err
+	}
+	return s.insertToken(table, email, ttl)
+}
+
+// insertToken legt einen weiteren Token fuer email in table an und raeumt dabei abgelaufene
+// Tokens der Tabelle weg, damit sie nicht endlos waechst.
+func (s *Store) insertToken(table, email string, ttl time.Duration) (string, error) {
 	token, err := randomToken()
 	if err != nil {
 		return "", err
 	}
-	now := time.Now().Unix()
-	if _, err := s.db.Exec("DELETE FROM "+table+" WHERE email = ? COLLATE NOCASE OR expires_at <= ?", email, now); err != nil {
+	now := time.Now()
+	if _, err := s.db.Exec("DELETE FROM "+table+" WHERE expires_at <= ?", now.Unix()); err != nil {
 		return "", err
 	}
 	_, err = s.db.Exec("INSERT INTO "+table+" (token_hash, email, expires_at) VALUES (?, ?, ?)",
-		hashToken(token), email, time.Now().Add(ttl).Unix())
+		hashToken(token), email, now.Add(ttl).Unix())
 	if err != nil {
 		return "", err
 	}
@@ -401,8 +422,7 @@ func (s *Store) ResetPassword(token, newPassword string) error {
 	if _, err := s.db.Exec("UPDATE users SET password_hash = ?, verified = 1 WHERE email = ? COLLATE NOCASE", hash, email); err != nil {
 		return err
 	}
-	s.deleteSessionsOf(email)
-	return nil
+	return s.deleteSessionsOf(email)
 }
 
 // AccountExists meldet, ob ein Konto mit dieser E-Mail existiert.
@@ -424,44 +444,37 @@ func hashToken(token string) string {
 	return hex.EncodeToString(sum[:])
 }
 
+// CreateSession meldet email an. Sitzungen liegen in der Datenbank und ueberstehen so einen
+// Neustart; ein Konto darf mehrere gleichzeitig haben (Handy und PC).
 func (s *Store) CreateSession(email string) (string, error) {
-	token, err := randomToken()
-	if err != nil {
-		return "", err
-	}
-	s.mu.Lock()
-	s.sessions[token] = strings.ToLower(email)
-	s.mu.Unlock()
-	return token, nil
+	return s.insertToken(sessionTable, strings.ToLower(email), sessionTTL)
 }
 
 func (s *Store) UserByToken(token string) (*User, bool) {
-	s.mu.Lock()
-	email, ok := s.sessions[token]
-	s.mu.Unlock()
-	if !ok {
-		return nil, false
-	}
-	var storedEmail, hash string
-	err := s.db.QueryRow("SELECT email, password_hash FROM users WHERE email = ? COLLATE NOCASE", email).Scan(&storedEmail, &hash)
+	var user User
+	err := s.db.QueryRow(`SELECT users.email, users.password_hash FROM sessions
+		JOIN users ON users.email = sessions.email COLLATE NOCASE
+		WHERE sessions.token_hash = ? AND sessions.expires_at > ?`,
+		hashToken(token), time.Now().Unix()).Scan(&user.Email, &user.PasswordHash)
 	if err != nil {
 		return nil, false
 	}
-	return &User{Email: storedEmail, PasswordHash: hash}, true
+	return &user, true
 }
 
 func (s *Store) DeleteSession(token string) {
-	s.mu.Lock()
-	delete(s.sessions, token)
-	s.mu.Unlock()
+	if _, err := s.db.Exec("DELETE FROM sessions WHERE token_hash = ?", hashToken(token)); err != nil {
+		log.Printf("delete session: %v", err)
+	}
 }
 
+// DeleteUser loescht das Konto mit allen Tokens, Sitzungen und Studio-Daten.
 func (s *Store) DeleteUser(email string) error {
 	key := strings.ToLower(email)
 	if _, err := s.db.Exec("DELETE FROM users WHERE email = ? COLLATE NOCASE", key); err != nil {
 		return err
 	}
-	for _, table := range []string{verificationTable, resetTable} {
+	for _, table := range tokenTables {
 		if _, err := s.db.Exec("DELETE FROM "+table+" WHERE email = ? COLLATE NOCASE", key); err != nil {
 			return err
 		}
@@ -471,19 +484,12 @@ func (s *Store) DeleteUser(email string) error {
 			return err
 		}
 	}
-	s.deleteSessionsOf(key)
 	return nil
 }
 
-func (s *Store) deleteSessionsOf(email string) {
-	key := strings.ToLower(email)
-	s.mu.Lock()
-	for tok, e := range s.sessions {
-		if e == key {
-			delete(s.sessions, tok)
-		}
-	}
-	s.mu.Unlock()
+func (s *Store) deleteSessionsOf(email string) error {
+	_, err := s.db.Exec("DELETE FROM sessions WHERE email = ? COLLATE NOCASE", email)
+	return err
 }
 
 func randomToken() (string, error) {
@@ -575,12 +581,8 @@ func verifyPassword(encodedHash, password string) (bool, error) {
 const csrfTokenTTL = 30 * time.Minute
 const csrfCookieName = "csrf_id"
 
-type csrfEntry struct {
-	token   string
-	expires time.Time
-}
-
 // NewCSRFToken erzeugt eine neue Cookie-ID und ein zugehoeriges Token, 30 Minuten gueltig.
+// Abgelaufene Tokens werden dabei weggeraeumt. In der DB liegt die Cookie-ID nur als Hash.
 func (s *Store) NewCSRFToken() (cookieID, token string, err error) {
 	cookieID, err = randomToken()
 	if err != nil {
@@ -590,21 +592,27 @@ func (s *Store) NewCSRFToken() (cookieID, token string, err error) {
 	if err != nil {
 		return "", "", err
 	}
-	s.mu.Lock()
-	s.csrf[cookieID] = csrfEntry{token: token, expires: time.Now().Add(csrfTokenTTL)}
-	s.mu.Unlock()
+	now := time.Now()
+	if _, err := s.db.Exec("DELETE FROM csrf_tokens WHERE expires_at <= ?", now.Unix()); err != nil {
+		return "", "", err
+	}
+	_, err = s.db.Exec("INSERT INTO csrf_tokens (id_hash, token, expires_at) VALUES (?, ?, ?)",
+		hashToken(cookieID), token, now.Add(csrfTokenTTL).Unix())
+	if err != nil {
+		return "", "", err
+	}
 	return cookieID, token, nil
 }
 
 // CSRFTokenFor liefert das noch gueltige Token zu einer bestehenden Cookie-ID, falls vorhanden.
 func (s *Store) CSRFTokenFor(cookieID string) (string, bool) {
-	s.mu.Lock()
-	e, ok := s.csrf[cookieID]
-	s.mu.Unlock()
-	if !ok || time.Now().After(e.expires) {
+	var token string
+	err := s.db.QueryRow("SELECT token FROM csrf_tokens WHERE id_hash = ? AND expires_at > ?",
+		hashToken(cookieID), time.Now().Unix()).Scan(&token)
+	if err != nil {
 		return "", false
 	}
-	return e.token, true
+	return token, true
 }
 
 // ValidateCSRF prueft Cookie-ID gegen eingereichtes Token: existent, nicht abgelaufen, zeitkonstant gleich.
@@ -612,13 +620,11 @@ func (s *Store) ValidateCSRF(cookieID, token string) bool {
 	if cookieID == "" || token == "" {
 		return false
 	}
-	s.mu.Lock()
-	e, ok := s.csrf[cookieID]
-	s.mu.Unlock()
-	if !ok || time.Now().After(e.expires) {
+	stored, ok := s.CSRFTokenFor(cookieID)
+	if !ok {
 		return false
 	}
-	return subtle.ConstantTimeCompare([]byte(e.token), []byte(token)) == 1
+	return subtle.ConstantTimeCompare([]byte(stored), []byte(token)) == 1
 }
 
 // csrfTokenFor liefert ein gueltiges CSRF-Token fuer diesen Request: wiederverwendet ein

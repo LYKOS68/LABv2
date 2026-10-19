@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sync"
 
 	_ "modernc.org/sqlite"
 )
@@ -65,10 +64,7 @@ func newMux(store *Store, limiter *RateLimiter, mailer *Mailer) *http.ServeMux {
 
 // Store haelt die Datenbank. Konto- und Studio-Abfragen haengen als Methoden in auth.go und studio.go.
 type Store struct {
-	db       *sql.DB
-	mu       sync.Mutex
-	sessions map[string]string    // token -> lowercase email, in-memory (nicht persistiert)
-	csrf     map[string]csrfEntry // cookie-id -> Token+Ablauf, in-memory
+	db *sql.DB
 }
 
 func newStore(dbPath string) (*Store, error) {
@@ -91,7 +87,7 @@ func newStore(dbPath string) (*Store, error) {
 	if err := createStudioTables(db); err != nil {
 		return nil, err
 	}
-	return &Store{db: db, sessions: make(map[string]string), csrf: make(map[string]csrfEntry)}, nil
+	return &Store{db: db}, nil
 }
 
 // ── Seiten ──────────────────────────────────────────────────────────────────────────────────────
