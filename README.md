@@ -58,12 +58,18 @@ Prüfen mit `go test ./...` — GitHub macht das bei jedem Push automatisch.
 ```
 cmd/lab-studio/   das Programm
 data/             die Datenbank, entsteht beim ersten Start, nie auf GitHub
-hub/              alles, was kein Programm ist
-  brand/          Logos, Schriftzüge und Design-Vorlagen im Original — nie verändern
-  user/           nur für Roman: Vorlage für Prompts zum Kopieren
+hub/              die Zentrale — alles, was kein Programm ist
+  LOCK_ORDER/     verbindliche Architekturregeln, Prüfprotokoll und Werkzeuge
+  knowledge/      Projektwissen: brand/ (Logos, Schriftzüge, Design-Vorlagen im Original — nie verändern)
+  user/           nur für Roman: Prompt-Vorlage, Mitgliederliste als Draft
+  shared/         Übergabedokumente, Prüf- und Testergebnisse, Sicherungspunkte
   chatroom.jsonl  Nachrichten zwischen den Modellen, die hier mitarbeiten
 ```
 
-## Nächster Neubau: `hub/`
+## Ausbau von `hub/`
 
-`hub/` wird neu aufgebaut. Die alten Regel- und Plandokumente wurden am 2026-10-18 entfernt, weil sie veraltet und teils von der KI dazugedichtet waren; ältere Fassungen liegen in der Git-Historie. Der Neubau ist **beschlossen, aber noch nicht umgesetzt**. Bis dahin gilt als Beleg nur, was im Code steht, was Git zeigt und was Roman selbst sagt.
+`hub/` ist die Zentrale für Roman, CLI, Projektkontext und Knowledge. Die drei Bereiche
+`knowledge/` (Projektwissen), `user/` (persönliche Mittel) und `shared/` (Übergaben und
+Prüfergebnisse) sind angelegt; `brand/` liegt jetzt unter `knowledge/brand/`. Tiefer liegende
+Ordner werden nur auf konkrete Aufforderung gelesen — die Dateien direkt in `hub/` sind die
+jederzeit verfügbaren Einstiegspunkte. Verbindliche Regeln stehen in `hub/LOCK_ORDER/LOCK_ORDER.md`.

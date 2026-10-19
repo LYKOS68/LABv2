@@ -68,3 +68,31 @@ Anlass: Fehlerpfad-Prüfung (bewusst ungültige Eingabe, Auftrag 4/5).
 - Abschlußlauf nach Entfernen der Probe: Textmodus S1–S5 alle `PASS`, Exit 0 — Zustand wiederhergestellt.
 - Statusverteilung belegt: `PASS`, `FAIL` und Eingabefehler (`FAIL EINGABE`, Exit 2) tatsächlich erzeugt; `NOT_RUN` nicht verwendet (kein Lauf ohne Prüfung).
 - Fehlerbefunde: keine neuen.
+
+### L4 — 2026-10-19T01:57:45Z — `PR-2026-10-19-smoke-LOCK-2026.10.19-3-L4`
+
+Anlass: `hub/` als zentrale Arbeitswurzel deklariert, Zielstruktur `knowledge/`, `user/`, `shared/` angelegt (Auftrag 1/5–5/5).
+
+- Regeländerung: LOCK_ORDER.md §2.1–§2.4 (hub-Deklaration, Einstiegspunkte, Zielstruktur, Lesebereiche), S2 um `hub/knowledge/`, `hub/user/`, `hub/shared/` erweitert, Stand `LOCK-2026.10.19-3`; `smoke.sh` S2-Liste mitgeändert (eine Iteration).
+- Verzeichnisse angelegt: `hub/knowledge/` (leer), `hub/shared/` (leer); `hub/user/` existierte mit `prompt-vorlage.yaml`. Keine Inhalte verschoben — Überführung von `brand/` und `mitglieder.csv` bleibt Freigabe vorbehalten.
+- Werkzeug: `sh hub/LOCK_ORDER/tools/smoke.sh --json PR-…-L4` (Echtlauf, `pruef/PR-2026-10-19-smoke-LOCK-2026.10.19-3-L4.json`, validiert).
+
+| Prüfung | Status | Exit-Code |
+|---|---|---|
+| S1–S5 | alle `PASS` | 0 (Gesamt) |
+
+Fehlerbefunde: keine. Bestand unverändert außer den zwei neuen leeren Verzeichnissen; `cmd/` unberührt; kein Commit, kein Push.
+
+### L5 — 2026-10-19T02:07:00Z — `PR-2026-10-19-smoke-LOCK-2026.10.19-4-L5`
+
+Anlass: Überführung freigegeben und ausgeführt — `hub/brand/` → `hub/knowledge/brand/`, `hub/mitglieder.csv` → `hub/user/mitglieder.csv` (Auftrag/„ja" des Menschen).
+
+- Sicherung vor Eingriff: Kopie `LOCK_ORDER.md` in `/tmp/opencode/lock-backup2/`; sha256 vorher: `LOCK_ORDER.md` `3fa50fe5…`, `smoke.sh` `6391f1db…`, `branch-termux-pull-manifest.md` `1e782bae…`, `README.md` `e495ecc3…`.
+- Verschiebung via `git mv` (21 brand-Dateien + `mitglieder.csv`); Inhalte angepasst: `LOCK_ORDER.md` (§1 Befunde, §2.1 Original-Pfad, §2.3 Status, §3 S2), `tools/smoke.sh` (S2-Liste), `hub/knowledge/brand/README.md` (Titel), `branch-termux-pull-manifest.md` (§5 Baum, §6 Pfadregel, §7 Zielstruktur, Zusammenfassung), `README.md` („Wo was liegt" + `hub/`-Abschnitt). Eine Iteration, Stand `LOCK-2026.10.19-4`.
+- Werkzeug: `sh hub/LOCK_ORDER/tools/smoke.sh --json PR-…-L5` (Echtlauf, `pruef/PR-2026-10-19-smoke-LOCK-2026.10.19-4-L5.json`, validiert).
+
+| Prüfung | Status | Exit-Code |
+|---|---|---|
+| S1–S5 | alle `PASS` | 0 (Gesamt) |
+
+Fehlerbefunde: keine. `cmd/` unberührt; kein Commit, kein Push.

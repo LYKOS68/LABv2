@@ -70,22 +70,26 @@ Aufnahmebasis für die spätere Root-Neuordnung. Nichts wurde verschoben oder ge
   README.md                  Projekt- und Pfaddoku, Branch-Zweck in Zeile 1
   cmd/lab-studio/            das Programm (Go, Web-Assets unter cmd/lab-studio/web/)
   go.mod / go.sum            Modul `rap-lab`, Go 1.27.0
-  hub/                       Non-Code-Bereich: brand/, user/, chatroom.jsonl,
-                             chatroom.schema.json, mitglieder.csv,
-                             git-befehlspal.txt (untracked, 2026-10-18 23:40)
+  hub/                       Zentrale: LOCK_ORDER/ (Regeln, Pruefprotokoll, Werkzeuge),
+                             knowledge/brand/ (Markenmaterial), user/ (prompt-vorlage.yaml,
+                             mitglieder.csv), shared/ (leer), chatroom.jsonl,
+                             chatroom.schema.json, git-befehlspal.txt
 ```
 
-Git-Arbeitszustand (unverändert belassen):
+Aktualisiert 2026-10-19 nach der `hub/`-Neuordnung (Stand LOCK-2026.10.19-4).
 
-- gelöscht, nicht committet: `test2.txt`
-- untracked: `hub/git-befehlspal.txt`
+Git-Arbeitszustand:
+
+- `test2.txt`: gelöscht und mit Commit `7e8a745` („step1") übernommen.
+- `hub/git-befehlspal.txt`, `branch-termux-pull-manifest.md`, `hub/LOCK_ORDER/`: mit `7e8a745` committet und gepusht.
+- Nach `7e8a745` lokal, noch nicht committet: `hub/`-Neuordnung (brand → knowledge/brand, mitglieder.csv → user), Regel- und Doku-Anpassungen.
 
 Bestehende Abhängigkeiten:
 
 - `data/` entsteht zur Laufzeit, ist git-ignoriert, nie auf GitHub (`README.md:60`, `.gitignore`).
 - `cmd/lab-studio` läuft mit `go run ./cmd/lab-studio`, Prüfung `go test ./...` (`README.md:49`, `README.md:54`).
-- `hub/` ist laut README „beschlossen, aber noch nicht umgesetzt" im Neubau; alte Regel-/Plandokus wurden 2026-10-18 entfernt, ältere Fassungen nur in der Git-Historie (`README.md:67-69`).
-- Nicht vorhanden: `LOCK_ORDER.md`, `__hub-docs/` → die Plan-/Ledger-Infrastruktur des rap-lab-Über-Projekts existiert hier **nicht**.
+- `hub/` ist die Zentrale (Roman, CLI, Projektkontext, Knowledge) mit `LOCK_ORDER/`, `knowledge/`, `user/`, `shared/` (`README.md:67-74`).
+- `hub/LOCK_ORDER/LOCK_ORDER.md` ist die verbindliche Regeldatei (Stand `LOCK-2026.10.19-4`); die Plan-/Ledger-Infrastruktur des rap-lab-Über-Projekts (`__hub-docs/`) existiert hier **nicht**.
 
 ### Lücken dieser Aufnahme
 
@@ -97,25 +101,23 @@ Bestehende Abhängigkeiten:
 
 1. Root dieser Branch-Arbeit ist ausschließlich `/root/github/LABv2`.
 2. **Programm-Bereich:** `cmd/` — nur Codeänderungen mit eigenem Auftrag.
-3. **Knowledge-Bereich:** `hub/` — alles, was kein Programm ist (`README.md:61-65`). `hub/brand/` und `hub/user/` unverändert belassen.
+3. **Wissens-Bereich:** `hub/` — alles, was kein Programm ist (`README.md:61-70`), gegliedert in `LOCK_ORDER/` (Regeln/Prüfungen), `knowledge/` (Projektwissen, u. a. `brand/`), `user/` (persönliche Mittel) und `shared/` (Übergaben/Ergebnisse). Nur auf Aufforderung lesen; die Dateien direkt in `hub/` sind Einstiegspunkte.
 4. **Laufzeit-Bereich:** `data/` — git-ignoriert, nie anfassen.
 5. **Werkzeug-Bereich:** `.claude/`, `.vscode/`, `.github/` — Konfiguration, Herkunft dokumentiert, keine Änderung ohne Auftrag.
 6. Root-Ebene: nur bestehende Dateien plus ausdrücklich freigegebene Manifeste. Keine neuen Verzeichnisse ohne Beleg und Freigabe.
 7. Kein Verschieben, kein Löschen, kein Umbenennen ohne **belegten Bedarf und ausdrückliche Freigabe** (Auftrag 3/5).
 
-## 7. Zielstruktur (Plan — nicht umgesetzt, nicht beschlossen)
-
-Getrennte Bereiche für CLI-Arbeit und Knowledge, angestrebt:
+## 7. Zielstruktur (umgesetzt am 2026-10-19)
 
 | Bereich | Ort | Status |
 |---|---|---|
 | Programm | `cmd/` | Bestand |
-| Knowledge / Non-Code | `hub/` | Bestand, Neubau beschlossen, offen (`README.md:67-69`) |
-| CLI-Arbeit (Skripte, Werkzeuge) | eigener Bereich in der Root, Name offen | **Vorschlag, kein Beleg → LÜCKE** |
+| Regeln/Prüfungen | `hub/LOCK_ORDER/` | umgesetzt (Stand `LOCK-2026.10.19-4`) |
+| Projektwissen | `hub/knowledge/` (mit `brand/`) | umgesetzt |
+| Persönliches | `hub/user/` | umgesetzt |
+| Übergaben/Ergebnisse | `hub/shared/` | deklariert, leer |
 | Laufzeitdaten | `data/` | Bestand, ignoriert |
 | Manifeste / Pläne | Root-Ebene, nur mit Freigabe | Bestand (diese Datei) |
-
-Keine Umbauten: diese Tabelle ist Zielbild für den nächsten Bauauftrag, keine Handlungsanweisung für diese Session.
 
 ## 8. Backreferenzen und Abschluss
 
@@ -125,4 +127,4 @@ Keine Umbauten: diese Tabelle ist Zielbild für den nächsten Bauauftrag, keine 
 - Schritt 4/5 → Rückkopplung: Repository, Branch, Arbeitsumgebung, Regeln, Pfad- und Herkunftsaussagen gegen den realen Zustand abgeglichen; Widersprüche korrigiert (Namensdifferenz §1, nicht existierende Plan-Infrastruktur §5, PC-Pfade als Lücken §5)
 - Schritt 5/5 → nur dieses Manifest erstellt; lokale Zustände bewahrt; gewartet auf den nächsten ausdrücklichen Bauauftrag
 
-**Zusammenfassung:** Manifest 1 | lokale Zustände unverändert | Remote/Push unberührt | Lücken 5 (offen) | Umbauten 0
+**Zusammenfassung:** Manifest 1 | `hub/`-Neuordnung umgesetzt | lokale Zustände bewahrt | Remote/Push nur für `7e8a745` (step1) | Lücken 3 (PC-Pfade, PC-Struktur, git-befehlspal-Bewertung) | Stand `LOCK-2026.10.19-4`

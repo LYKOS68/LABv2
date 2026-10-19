@@ -1,4 +1,4 @@
-# hub/brand/
+# hub/knowledge/brand/
 
 Marken-Originale und Design-Vorlagen von RAP-LAB. 
 

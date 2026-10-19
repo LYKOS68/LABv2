@@ -1,0 +1,14 @@
+{
+  "pruefkennung": "PR-2026-10-19-smoke-LOCK-2026.10.19-4-L5",
+  "werkzeug": "hub/LOCK_ORDER/tools/smoke.sh",
+  "stand": "LOCK-2026.10.19-4",
+  "zeitpunkt_utc": "2026-10-19T02:07:00Z",
+  "exit_code": 0,
+  "ergebnisse": [
+    {"id": "S1", "status": "PASS", "detail": "Regelwurzel vorhanden", "betroffen": ["hub/LOCK_ORDER/"]},
+    {"id": "S2", "status": "PASS", "detail": "md-Dateien nur an erlaubten Orten", "betroffen": ["hub/", "README.md", "branch-termux-pull-manifest.md"]},
+    {"id": "S3", "status": "PASS", "detail": "txt-Inventar unveraendert", "betroffen": ["hub/git-befehlspal.txt", "cmd/lab-studio/web/static/fonts/manrope-OFL.txt"]},
+    {"id": "S4", "status": "PASS", "detail": "cmd/ unveraendert", "betroffen": ["cmd/"]},
+    {"id": "S5", "status": "PASS", "detail": "Branch synchron mit origin, kein Push (## termux-pull...origin/termux-pull)", "betroffen": [".git/"]}
+  ]
+}

@@ -44,7 +44,7 @@ fi
 # S2 md ausserhalb Runtime nur an erlaubten Orten
 bad_md=$(find . -name '*.md' -not -path './cmd/*' -not -path './.git/*' \
   | sed 's|^\./||' \
-  | grep -vE '^(README\.md|branch-termux-pull-manifest\.md|hub/brand/README\.md|hub/LOCK_ORDER/)' || true)
+  | grep -vE '^(README\.md|branch-termux-pull-manifest\.md|hub/LOCK_ORDER/|hub/knowledge/|hub/user/|hub/shared/)' || true)
 S2st=PASS; S2dt="md-Dateien nur an erlaubten Orten"
 if [ -n "$bad_md" ]; then
   S2st=FAIL
