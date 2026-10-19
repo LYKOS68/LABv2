@@ -44,7 +44,7 @@ Rapper, Artists, Songwriter, Producer, Beatmaker, Mixer, Videografen, Designer �
 ## Ausprobieren
 
 ```
-go run ./cmd/lab-studio
+go run ./cmd/raplab
 ```
 
 Dann im Browser **http://127.0.0.1:8090** öffnen (in VS Code auch über die Aufgabe „RAP-LAB: Server starten"). Solange kein Mail-Dienst eingerichtet ist, erscheinen die Bestätigungs- und Passwort-Links im Konsolenfenster des Servers.
@@ -54,7 +54,8 @@ Prüfen mit `go test ./...` — GitHub macht das bei jedem Push automatisch.
 ## Wo was liegt
 
 ```
-cmd/lab-studio/   das Programm
+cmd/raplab/       das Programm: main.go (Start, Routen), auth.go (Konto), studio.go (LAB-STUDIO)
+web/              Seiten, Vorlagen, CSS, JS und Bilder; web.go baut sie ins Programm ein
 data/             die Datenbank, entsteht beim ersten Start, nie auf GitHub
 hub/              alles, was kein Programm ist
   brand/          Logos, Schriftzüge und Design-Vorlagen im Original — nie verändern

@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-var studioTpl = template.Must(template.ParseFS(webFiles, "web/studio.html"))
+var studioTpl = template.Must(template.ParseFS(webFiles, "studio.html"))
 
 const (
 	minScale      = 0.25

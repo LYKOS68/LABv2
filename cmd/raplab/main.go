@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"embed"
 	"html/template"
 	"io/fs"
 	"log"
@@ -11,12 +10,12 @@ import (
 	"path/filepath"
 
 	_ "modernc.org/sqlite"
+
+	"rap-lab/web"
 )
 
-// web/ wird ins Programm eingebaut: HTML-Vorlagen und static/ als Dateien unter /static/.
-//
-//go:embed web
-var webFiles embed.FS
+// Seiten, Vorlagen und static/ kommen eingebettet aus dem Paket web (Ordner web/ in der Wurzel).
+var webFiles = web.Files
 
 func main() {
 	store, err := newStore("data/raplab.sqlite")
@@ -93,7 +92,7 @@ func newStore(dbPath string) (*Store, error) {
 // ── Seiten ──────────────────────────────────────────────────────────────────────────────────────
 
 func staticFiles() http.Handler {
-	static, err := fs.Sub(webFiles, "web/static")
+	static, err := fs.Sub(webFiles, "static")
 	if err != nil {
 		panic(err)
 	}
@@ -102,7 +101,7 @@ func staticFiles() http.Handler {
 
 // Startseite und Konto-Seiten: layout.html ist der Rahmen, home.html und auth.html liefern
 // die Inhalte als {{define "content-..."}}-Bloecke.
-var tpl = template.Must(template.ParseFS(webFiles, "web/layout.html", "web/home.html", "web/auth.html"))
+var tpl = template.Must(template.ParseFS(webFiles, "layout.html", "home.html", "auth.html"))
 
 type pageData struct {
 	LoggedIn   bool
@@ -142,6 +141,6 @@ func homeHandler(store *Store) http.HandlerFunc {
 // die Seite laeuft komplett im Browser mit Beispielanzeigen und schickt nichts an den Server.
 func connectPageHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFileFS(w, r, webFiles, "web/connect.html")
+		http.ServeFileFS(w, r, webFiles, "connect.html")
 	}
 }
