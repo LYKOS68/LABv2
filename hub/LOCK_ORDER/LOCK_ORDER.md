@@ -4,7 +4,7 @@ Subwurzel `/hub/LOCK_ORDER/` (deklariert 2026-10-18, Auftrag 1/5).
 Geltung: Projekt-Root `/root/github/LABv2`, Branch `termux-pull`.
 Regeln liegen als Artefakte in dieser Datei, nicht im Kontextgedächtnis.
 
-**Entwicklungsstand: `LOCK-2026.10.19-4`** — bestätigt durch die Smoke-Prüfungen (Ausführungsnachweise in `pruef/VERLAUF.md`, maschinenlesbar als `pruef/PR-*.json` aus echten Läufen).
+**Entwicklungsstand: `LOCK-2026.10.19-5`** — bestätigt durch die Smoke-Prüfungen (Ausführungsnachweise in `pruef/VERLAUF.md`, maschinenlesbar als `pruef/PR-*.json` aus echten Läufen).
 
 ---
 
@@ -85,6 +85,17 @@ Verbotene Praktiken:
 - Runtime-Dateien unter `cmd/` aus Regeln heraus ändern — braucht separaten Auftrag.
 - Verschieben bestehender Inhalte in `knowledge/`, `user/` oder `shared/` ohne geprüfte Freigabe.
 
+### 2.5 Zugriffs- und Herkunftsregel (verbindlich)
+
+An diesem Repository arbeitet **ausschließlich Roman und seine eigenen CLI-Werkzeuge**
+(Termux/OpenCode samt eingesetztem Modell sowie vom Menschen direkt ausgelöste lokale CLI-Läufe) —
+**zu keinem Zeitpunkt** jemand oder etwas anderes.
+
+- Keine anderen Personen, Modelle, Agenten, Bots oder Dienste lesen, schreiben, committen oder pushen.
+- Kein automatischer Zugriff, keine Integrationen, keine Hintergrund- oder Fremdprozesse.
+- Jede Ausnahme gilt nur, wenn Roman sie ausdrücklich und einzeln anweist.
+- Herkunft jedes Stands ist damit eindeutig: Roman bzw. dessen CLI. Diese Herkunft ist nicht umdeutbar.
+
 ## 3. Smoke-Prüfungen (Beleg)
 
 Jede Prüfung läuft aus der Projekt-Root. Ausgeführt schlägt behauptet: Ergebnis hier dokumentieren.
@@ -118,5 +129,6 @@ hier bleibt nur der jeweils dokumentierte Regelstand.
 - Überführung ausgeführt: `hub/brand/` → `hub/knowledge/brand/`, `hub/mitglieder.csv` → `hub/user/mitglieder.csv` (Sicherung vorab, `git mv`, alle Pfadverweise angepasst).
 - Formatordnung unverändert (§1); S2 an die neue Struktur angepasst (§3).
 - Smoke-Prüfungen S1–S5 als Werkzeug nach der Regeländerung neu ausgeführt; Nachweis in `pruef/VERLAUF.md` und `pruef/PR-*.json`.
+- Zugriffs- und Herkunftsregel festgeschrieben (§2.5): ausschließlich Roman und seine CLIs arbeiten an diesem Repository, zu keinem Zeitpunkt jemand anderes.
 - Keine Commits, kein Push, keine Verschiebungen von Bestandsinhalten, keine Runtime-Änderungen.
 - Wartet auf den nächsten ausdrücklichen Auftrag.

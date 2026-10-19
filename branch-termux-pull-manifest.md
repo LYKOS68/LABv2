@@ -38,6 +38,13 @@ Beleg der Branch-Bestimmung im Projekt selbst: `README.md:1` —
 
 ## 4. Herkunft und Bearbeitungszustand
 
+**Zugriffsregel (verbindlich):** An diesem Repository arbeitet ausschließlich Roman
+und seine eigenen CLI-Werkzeuge (Termux/OpenCode samt eingesetztem Modell sowie vom
+Menschen direkt ausgelöste lokale CLI-Läufe) — zu keinem Zeitpunkt jemand oder etwas
+anderes. Keine anderen Personen, Modelle, Agenten, Bots oder Dienste; kein automatischer
+Zugriff, keine Integrationen. Ausnahmen nur, wenn Roman sie ausdrücklich einzeln anweist.
+Verankert in `hub/LOCK_ORDER/LOCK_ORDER.md` §2.5.
+
 **Herkunftsregel:** Jeder Änderungsstand dieser Branch stammt aus der mobilen
 Bearbeitung (Handy, Termux, OpenCode CLI, Big Pickle). Diese Herkunft ist
 Kennung jedes Stands, nicht bloßer Kommentar.

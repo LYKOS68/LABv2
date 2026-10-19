@@ -96,3 +96,16 @@ Anlass: Überführung freigegeben und ausgeführt — `hub/brand/` → `hub/know
 | S1–S5 | alle `PASS` | 0 (Gesamt) |
 
 Fehlerbefunde: keine. `cmd/` unberührt; kein Commit, kein Push.
+
+### L6 — 2026-10-19T02:24:13Z — `PR-2026-10-19-smoke-LOCK-2026.10.19-5-L6`
+
+Anlass: Zugriffs- und Herkunftsregel festgeschrieben („es arbeitet keiner außer Roman und seinen CLIs an diesem Repository, egal wann").
+
+- Regeländerung: `LOCK_ORDER.md` §2.5 neu (exklusiver Zugriff: nur Roman und seine CLI-Werkzeuge, keine anderen Personen/Modelle/Agenten/Bots/Dienste, kein Automatismus, Ausnahmen nur einzeln durch Roman) und §5 ergänzt; `branch-termux-pull-manifest.md` §4 um dieselbe Regel mit Verankerung auf §2.5 erweitert. Eine Iteration, Stand `LOCK-2026.10.19-5`.
+- Werkzeug: `sh hub/LOCK_ORDER/tools/smoke.sh --json PR-…-L6` (Echtlauf, `pruef/PR-2026-10-19-smoke-LOCK-2026.10.19-5-L6.json`, validiert).
+
+| Prüfung | Status | Exit-Code |
+|---|---|---|
+| S1–S5 | alle `PASS` | 0 (Gesamt) |
+
+Fehlerbefunde: keine. `cmd/` unberührt; kein Commit, kein Push.
