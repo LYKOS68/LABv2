@@ -1,68 +1,29 @@
-# RAP-LAB
+# LABv2 - Rap Lab
+Source-Available Community Project by LYKOS68
+**Kostenlose Vernetzung + freiwillige Dienstleistungen für Mix, Master, Beats, Ghostwriting, Features.**
+### Lizenz
+This project is Source-Available under Polyform Noncommercial 1.0.0
+- Du DARFST: Code ansehen, forken, lokal nutzen, PRs machen, lernen, private Projekte bauen.
+- Du DARFST NICHT: Code / Forks verkaufen, als bezahlten Service hosten, oder in einem kommerziellen Produkt nutzen ohne Erlaubnis.
+Für kommerzielle Nutzung: roman.hild4@gmail.com
 
-**Musik passiert nicht nur im Studio.**
+### Stack
+Go fungiert als zentraler Orchestrator, der das Frontend über HTML-Vorlagen steuert, die Geschäftslogik verarbeitet und die Datenbankabfragen koordiniert.
+/ [dein Stack hier] /
+### Owner
+Roman Hild (LYKOS68) - https://github.com/LYKOS68
 
-## Warum es RAP-LAB gibt
+### Status
+Early Dev - ENTWICKLUNGS-PHASE
+Lyrics-Editor kommt später. Fokus jetzt: Community + Marktplatz.
+Auf Monetarisierung, Gewerbeanmeldungen oder komplexe Soundfunktionen wird vorerst verzichtet, um das Fundament stabil aufzubauen.
+Erstmal ein voll funktionsfähiges Produkt entwickeln, Nutzerfeedback sammeln und dann die Monetarisierung und rechtliche Schritte planen, sobald Interesse besteht.
+Marktplatz spricht eine deutlich breitere Zielgruppe an und sorgt für mehr Reichweite und potenzielle Nutzerinteraktionen. Der Marktplatz ist somit das Rückgrat für deine Plattform.
+Du kannst Skripte entwickeln, die dein Portfolio automatisch in relevanten Communities oder auf Social Media posten, um organische Reichweite aufzubauen, ohne Ads zu schalten. 
+Du kannst automatisierte Skripte schreiben, die über offizielle APIs von Werbenetzwerken, wie Google oder TikTok, Ad-Kampagnen steuern. Allerdings ist hierfür fundierte Programmiererfahrung in Sprachen wie Python oder Go nötig.
+ 
+## Warum es RAP-LAB geben soll
 
-Eine Idee wird zum Song. Der Song braucht einen Beat, die Vocals einen Mix, das Release ein Cover, das Projekt ein Video. Gesucht wird dann über WhatsApp, Instagram, Google, Discord und irgendwelche Gruppen: 17 Tabs, 40 Chats. Und die eigenen Lines liegen verteilt in Handy-Notizen, alten Notizblöcken und Dateien auf dem PC — gute Sätze, aber nicht rund, nicht zusammengebaut.
-
-**Es fehlen nicht die Leute. Es ist alles verteilt.**
-
-RAP-LAB holt das an einen Ort, von der ersten Line bis zur Zusammenarbeit:
-
-```
-Line → Song → Projekt → Producer ↔ Artist → Mix → Cover → Video → Release
-```
-
-## Für wen
-
-Rapper, Artists, Songwriter, Producer, Beatmaker, Mixer, Videografen, Designer — alle, die an einem Musikprojekt arbeiten oder dafür gebraucht werden. Kein Label nötig, keine Millionen Follower: Es reicht, etwas zu können, das jemand anderes für sein Projekt braucht.
-
-## Die Bereiche
-
-- **LAB-STUDIO** — der Ort, an dem Lyrics geschrieben, verfeinert und archiviert werden. Eine Arbeitsfläche, auf der man Songs, Lines und Notizen nebeneinander legt und frei verschiebt, weil Schreiben wie Puzzeln ist. Kein Tonstudio: keine Beats, kein Mixing, kein Recording.
-- **LAB-CONNECT** — Angebote und Gesuche der Musikbranche, wie Kleinanzeigen. Die Frage ist nicht „Kann ich alles alleine?", sondern „Was kann ich selbst, und wen brauche ich für den Rest?"
-- **NEWS** (später) — relevante Infos für die eigene Arbeit statt Feed für alle.
-
-## Wo es gerade steht (2026-10-19)
-
-| Bereich | Stand |
-|---|---|
-| Startseite | im Markendesign, auf Handy und PC |
-| Konto | Registrieren mit E-Mail-Bestätigung, Anmelden, Passwort vergessen, Konto löschen |
-| LAB-STUDIO | nutzbar: Arbeitsfläche zum Verschieben und Zoomen, Notizen, Songs anlegen, Lyrics schreiben und speichern. Jedes Konto sieht nur seine eigenen Texte |
-| LAB-CONNECT | nur die Oberfläche, mit Beispielanzeigen — speichert noch nichts |
-| NEWS | noch nicht begonnen |
-
-## Wohin es geht
-
-- **LAB-STUDIO**: Songs getrennt nach *Released* und *Drafts*; ein **Reimbuch** zum Nachschlagen von Reimen; **Relatable Bars** als Ablage der stärksten Lines zum Wiederverwenden
-- **LAB-CONNECT**: echte Anzeigen erstellen und nach Standort und Region filtern; Videos und Feedback an Anzeigen, damit man zeigen kann, was man kann
-- **Community**: Gruppen, Meetups, Gigs und lokale Kontakte
-- **Kreatives Profil**: „Wer bin ich? Was mache ich? Was kann ich zeigen?"
-
-## Ausprobieren
-
-```
-go run ./cmd/raplab
-```
-
-Dann im Browser **http://127.0.0.1:8090** öffnen (in VS Code auch über die Aufgabe „RAP-LAB: Server starten"). Solange kein Mail-Dienst eingerichtet ist, erscheinen die Bestätigungs- und Passwort-Links im Konsolenfenster des Servers.
-
-Prüfen mit `go test ./...` — GitHub macht das bei jedem Push automatisch.
-
-## Wo was liegt
-
-```
-cmd/raplab/       das Programm: main.go (Start, Routen), auth.go (Konto), studio.go (LAB-STUDIO)
-web/              Seiten, Vorlagen, CSS, JS und Bilder; web.go baut sie ins Programm ein
-data/             die Datenbank, entsteht beim ersten Start, nie auf GitHub
-hub/              alles, was kein Programm ist
-  brand/          Logos, Schriftzüge und Design-Vorlagen im Original — nie verändern
-  user/           nur für Roman: Vorlage für Prompts zum Kopieren
-  chatroom.jsonl  Nachrichten zwischen den Modellen, die hier mitarbeiten
-```
-
-## Nächster Neubau: `hub/`
-
-`hub/` wird neu aufgebaut. Die alten Regel- und Plandokumente wurden am 2026-10-18 entfernt, weil sie veraltet und teils von der KI dazugedichtet waren; ältere Fassungen liegen in der Git-Historie. Der Neubau ist **beschlossen, aber noch nicht umgesetzt**. Bis dahin gilt als Beleg nur, was im Code steht, was Git zeigt und was Roman selbst sagt.
+Vernetzungs- und Angebotsplattform für Musikschaffende.
+Verbinde Rapper, Artists, Songwriter, Producer, Beatmaker, Mixer, Videografen und Designer über Künstlerprofile, Nachrichten, Videobeiträge, Rückmeldungen, Ranglisten und die Suche nach Auftritten und Mitstreitern.
+Ergänze einen Kleinanzeigenbereich für Angebote und Gesuche: Beats, Mixing, Mastering, Ghostwriting, Musikvideos, Covergestaltung oder gemeinsame Projekte. Die Leitfrage: „Was kann ich selbst, und wen brauche ich für den Rest?“ Mache aus der Vernetzung konkrete Zusammenarbeit, ohne ein eigenes Tonstudio vorauszusetzen.
