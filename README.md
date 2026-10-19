@@ -1,6 +1,11 @@
 # LABv2 - Rap Lab
 Source-Available Community Project by LYKOS68
 **Kostenlose Vernetzung + freiwillige Dienstleistungen für Mix, Master, Beats, Ghostwriting, Features.**
+> ### ⚠️ Vibe Coded Project
+> This repository is built exclusively via local AI CLI code generation.
+> No manual code was written by Roman Hild (LYKOS68).
+> Owner is Product Owner & Architect, not code author in traditional sense.
+
 ### Lizenz
 This project is Source-Available under Polyform Noncommercial 1.0.0
 - Du DARFST: Code ansehen, forken, lokal nutzen, PRs machen, lernen, private Projekte bauen.
