@@ -1,7 +1,7 @@
 # RAP-LAB
 
 **Musik passiert nicht nur im Studio.**
-
+TEST
 ## Warum es RAP-LAB gibt
 
 Eine Idee wird zum Song. Der Song braucht einen Beat, die Vocals einen Mix, das Release ein Cover, das Projekt ein Video. Gesucht wird dann über WhatsApp, Instagram, Google, Discord und irgendwelche Gruppen: 17 Tabs, 40 Chats. Und die eigenen Lines liegen verteilt in Handy-Notizen, alten Notizblöcken und Dateien auf dem PC — gute Sätze, aber nicht rund, nicht zusammengebaut.
