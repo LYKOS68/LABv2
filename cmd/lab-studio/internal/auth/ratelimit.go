@@ -1,4 +1,4 @@
-package main
+package auth
 
 import (
 	"net"
@@ -25,7 +25,7 @@ type RateLimiter struct {
 	entries map[string]*rateLimitEntry
 }
 
-func newRateLimiter() *RateLimiter {
+func NewRateLimiter() *RateLimiter {
 	return &RateLimiter{entries: make(map[string]*rateLimitEntry)}
 }
 
@@ -57,10 +57,10 @@ func (rl *RateLimiter) Allow(key string) (allowed bool, retryAfter time.Duration
 	return true, 0
 }
 
-// allowOrTooManyRequests prueft das Rate-Limit fuer key. Bei Ueberschreitung wird 429 mit
+// AllowOrTooManyRequests prueft das Rate-Limit fuer key. Bei Ueberschreitung wird 429 mit
 // Retry-After geschrieben und false zurueckgegeben; der Aufrufer darf dann nicht fortfahren.
-func allowOrTooManyRequests(w http.ResponseWriter, limiter *RateLimiter, key string) bool {
-	allowed, retryAfter := limiter.Allow(key)
+func (rl *RateLimiter) AllowOrTooManyRequests(w http.ResponseWriter, key string) bool {
+	allowed, retryAfter := rl.Allow(key)
 	if !allowed {
 		w.Header().Set("Retry-After", strconv.Itoa(int(retryAfter.Seconds())))
 		http.Error(w, "too many attempts, try again later", http.StatusTooManyRequests)
@@ -69,7 +69,7 @@ func allowOrTooManyRequests(w http.ResponseWriter, limiter *RateLimiter, key str
 	return true
 }
 
-func clientIP(r *http.Request) string {
+func ClientIP(r *http.Request) string {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		return r.RemoteAddr

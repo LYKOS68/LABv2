@@ -1,4 +1,4 @@
-package main
+package auth
 
 import (
 	"regexp"
@@ -7,15 +7,15 @@ import (
 
 var emailRe = regexp.MustCompile(`^[^@\s]+@[^@\s]+\.[^@\s]+$`)
 
-func validateRegistration(email, password, confirm string) string {
+func ValidateRegistration(email, password, confirm string) string {
 	email = strings.TrimSpace(email)
 	if email == "" || !emailRe.MatchString(email) {
 		return "Bitte eine gueltige E-Mail-Adresse angeben."
 	}
-	return validateNewPassword(password, confirm)
+	return ValidateNewPassword(password, confirm)
 }
 
-func validateNewPassword(password, confirm string) string {
+func ValidateNewPassword(password, confirm string) string {
 	if len(password) < 8 {
 		return "Passwort muss mindestens 8 Zeichen haben."
 	}

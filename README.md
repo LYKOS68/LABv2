@@ -57,6 +57,10 @@ Prüfen mit `go test ./...` — GitHub macht das bei jedem Push automatisch.
 
 ```
 cmd/lab-studio/   das Programm
+  main.go         Start: verbindet die Teile und startet den Server
+  internal/       store/ (Datenbank: Konten, Songs, Arbeitsfläche), auth/ (Passwörter, CSRF,
+                  Rate-Limit, Prüfungen), mail/ (Mailversand), server/ (Seiten, Routen, Studio-API)
+  web/            Seiten, Styles, Skripte, Schriften und Bilder
 data/             die Datenbank, entsteht beim ersten Start, nie auf GitHub
 hub/              die Zentrale — alles, was kein Programm ist
   LOCK_ORDER/     verbindliche Architekturregeln, Prüfprotokoll und Werkzeuge

@@ -1,7 +1,6 @@
-package main
+package server
 
 import (
-	"embed"
 	"encoding/json"
 	"errors"
 	"html/template"
@@ -11,17 +10,16 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"rap-lab/cmd/lab-studio/internal/auth"
+	"rap-lab/cmd/lab-studio/internal/store"
+	"rap-lab/cmd/lab-studio/web"
 )
 
-// web/ wird ins Programm eingebaut: studio.html als Vorlage, static/ als Dateien unter /static/.
-//
-//go:embed web
-var webFiles embed.FS
-
-var studioTpl = template.Must(template.ParseFS(webFiles, "web/studio.html"))
+var studioTpl = template.Must(template.ParseFS(web.Files, "studio.html"))
 
 func staticFiles() http.Handler {
-	static, err := fs.Sub(webFiles, "web/static")
+	static, err := fs.Sub(web.Files, "static")
 	if err != nil {
 		panic(err)
 	}
@@ -37,19 +35,19 @@ const (
 	csrfHeaderKey = "X-CSRF-Token"
 )
 
-// Feldtypen mit Standardgroesse; unbekannter Typ = 400. Gleiche Werte in web/static/studio.js.
+// Feldtypen mit Standardgroesse; unbekannter Typ = 400. Gleiche Werte in cmd/lab-studio/web/static/studio.js.
 var fieldSizes = map[string][2]float64{
 	"note":  {240, 160},
 	"songs": {640, 420},
 }
 
-func studioPageHandler(store *Store) http.HandlerFunc {
+func studioPageHandler(st *store.Store, csrf *auth.CSRF) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if _, _, loggedIn := currentUser(r, store); !loggedIn {
+		if _, _, loggedIn := currentUser(r, st); !loggedIn {
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
 		}
-		data := pageData{CSRFToken: csrfTokenFor(w, r, store)}
+		data := pageData{CSRFToken: csrf.Token(w, r)}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		if err := studioTpl.Execute(w, data); err != nil {
 			log.Printf("studio render error: %v", err)
@@ -62,14 +60,14 @@ type studioHandler func(w http.ResponseWriter, r *http.Request, owner string)
 
 // studioAPI prueft vor jedem Studio-Zugriff die Sitzung und bei Schreibzugriffen das
 // CSRF-Token aus dem Header. Erst danach laeuft next.
-func studioAPI(store *Store, next studioHandler) http.HandlerFunc {
+func studioAPI(st *store.Store, csrf *auth.CSRF, next studioHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		u, _, loggedIn := currentUser(r, store)
+		u, _, loggedIn := currentUser(r, st)
 		if !loggedIn {
 			writeJSON(w, http.StatusUnauthorized, errMsg("nicht angemeldet"))
 			return
 		}
-		if r.Method != http.MethodGet && !validCSRFHeader(r, store) {
+		if r.Method != http.MethodGet && !csrf.ValidHeader(r, csrfHeaderKey) {
 			writeJSON(w, http.StatusForbidden, errMsg("ungueltiges csrf-token"))
 			return
 		}
@@ -77,26 +75,18 @@ func studioAPI(store *Store, next studioHandler) http.HandlerFunc {
 	}
 }
 
-func validCSRFHeader(r *http.Request, store *Store) bool {
-	cookieID := ""
-	if c, err := r.Cookie(csrfCookieName); err == nil {
-		cookieID = c.Value
-	}
-	return store.ValidateCSRF(cookieID, r.Header.Get(csrfHeaderKey))
-}
-
 // Das CSRF-Token laeuft nach 30 Minuten ab; die offene Studio-Seite holt sich hier ein neues.
-func handleStudioCSRF(store *Store) studioHandler {
+func handleStudioCSRF(csrf *auth.CSRF) studioHandler {
 	return func(w http.ResponseWriter, r *http.Request, owner string) {
-		writeJSON(w, http.StatusOK, map[string]string{"token": csrfTokenFor(w, r, store)})
+		writeJSON(w, http.StatusOK, map[string]string{"token": csrf.Token(w, r)})
 	}
 }
 
 // ── Songs ──────────────────────────────────────────────────────────────────────────────────
 
-func handleListSongs(store *Store) studioHandler {
+func handleListSongs(st *store.Store) studioHandler {
 	return func(w http.ResponseWriter, r *http.Request, owner string) {
-		songs, err := store.ListSongs(owner)
+		songs, err := st.ListSongs(owner)
 		if err != nil {
 			writeStoreError(w, err)
 			return
@@ -105,7 +95,7 @@ func handleListSongs(store *Store) studioHandler {
 	}
 }
 
-func handleCreateSong(store *Store) studioHandler {
+func handleCreateSong(st *store.Store) studioHandler {
 	return func(w http.ResponseWriter, r *http.Request, owner string) {
 		var body struct {
 			Title string `json:"title"`
@@ -118,7 +108,7 @@ func handleCreateSong(store *Store) studioHandler {
 			writeJSON(w, http.StatusBadRequest, errMsg("titel fehlt oder ist zu lang"))
 			return
 		}
-		song, err := store.CreateSong(owner, title)
+		song, err := st.CreateSong(owner, title)
 		if err != nil {
 			writeStoreError(w, err)
 			return
@@ -127,13 +117,13 @@ func handleCreateSong(store *Store) studioHandler {
 	}
 }
 
-func handleGetSong(store *Store) studioHandler {
+func handleGetSong(st *store.Store) studioHandler {
 	return func(w http.ResponseWriter, r *http.Request, owner string) {
 		id, ok := pathID(w, r)
 		if !ok {
 			return
 		}
-		song, err := store.GetSong(owner, id)
+		song, err := st.GetSong(owner, id)
 		if err != nil {
 			writeStoreError(w, err)
 			return
@@ -142,7 +132,7 @@ func handleGetSong(store *Store) studioHandler {
 	}
 }
 
-func handleSaveSong(store *Store) studioHandler {
+func handleSaveSong(st *store.Store) studioHandler {
 	return func(w http.ResponseWriter, r *http.Request, owner string) {
 		id, ok := pathID(w, r)
 		if !ok {
@@ -158,7 +148,7 @@ func handleSaveSong(store *Store) studioHandler {
 			writeJSON(w, http.StatusBadRequest, errMsg("text zu lang"))
 			return
 		}
-		if err := store.SaveSongText(owner, id, body.Text); err != nil {
+		if err := st.SaveSongText(owner, id, body.Text); err != nil {
 			writeStoreError(w, err)
 			return
 		}
@@ -168,14 +158,14 @@ func handleSaveSong(store *Store) studioHandler {
 
 // ── Arbeitsflaeche ─────────────────────────────────────────────────────────────────────────
 
-func handleWorkspace(store *Store) studioHandler {
+func handleWorkspace(st *store.Store) studioHandler {
 	return func(w http.ResponseWriter, r *http.Request, owner string) {
-		view, err := store.LoadView(owner)
+		view, err := st.LoadView(owner)
 		if err != nil {
 			writeStoreError(w, err)
 			return
 		}
-		fields, err := store.ListFields(owner)
+		fields, err := st.ListFields(owner)
 		if err != nil {
 			writeStoreError(w, err)
 			return
@@ -184,9 +174,9 @@ func handleWorkspace(store *Store) studioHandler {
 	}
 }
 
-func handleSaveView(store *Store) studioHandler {
+func handleSaveView(st *store.Store) studioHandler {
 	return func(w http.ResponseWriter, r *http.Request, owner string) {
-		view, err := store.LoadView(owner)
+		view, err := st.LoadView(owner)
 		if err != nil {
 			writeStoreError(w, err)
 			return
@@ -195,7 +185,7 @@ func handleSaveView(store *Store) studioHandler {
 			return
 		}
 		view.Scale = clampScale(view.Scale)
-		if err := store.SaveView(owner, view); err != nil {
+		if err := st.SaveView(owner, view); err != nil {
 			writeStoreError(w, err)
 			return
 		}
@@ -203,9 +193,9 @@ func handleSaveView(store *Store) studioHandler {
 	}
 }
 
-func handleCreateField(store *Store) studioHandler {
+func handleCreateField(st *store.Store) studioHandler {
 	return func(w http.ResponseWriter, r *http.Request, owner string) {
-		var f Field
+		var f store.Field
 		if !readJSON(w, r, &f) {
 			return
 		}
@@ -217,10 +207,10 @@ func handleCreateField(store *Store) studioHandler {
 		if f.W <= 0 || f.H <= 0 {
 			f.W, f.H = size[0], size[1]
 		}
-		if !validFieldSong(w, store, owner, &f) {
+		if !validFieldSong(w, st, owner, &f) {
 			return
 		}
-		created, err := store.CreateField(owner, f)
+		created, err := st.CreateField(owner, f)
 		if err != nil {
 			writeStoreError(w, err)
 			return
@@ -230,13 +220,13 @@ func handleCreateField(store *Store) studioHandler {
 }
 
 // handleUpdateField uebernimmt nur die mitgeschickten Werte; ID und Typ bleiben unveraendert.
-func handleUpdateField(store *Store) studioHandler {
+func handleUpdateField(st *store.Store) studioHandler {
 	return func(w http.ResponseWriter, r *http.Request, owner string) {
 		id, ok := pathID(w, r)
 		if !ok {
 			return
 		}
-		f, err := store.GetField(owner, id)
+		f, err := st.GetField(owner, id)
 		if err != nil {
 			writeStoreError(w, err)
 			return
@@ -251,10 +241,10 @@ func handleUpdateField(store *Store) studioHandler {
 			writeJSON(w, http.StatusBadRequest, errMsg("ungueltige groesse"))
 			return
 		}
-		if !validFieldSong(w, store, owner, &f) {
+		if !validFieldSong(w, st, owner, &f) {
 			return
 		}
-		if err := store.UpdateField(owner, f); err != nil {
+		if err := st.UpdateField(owner, f); err != nil {
 			writeStoreError(w, err)
 			return
 		}
@@ -263,7 +253,7 @@ func handleUpdateField(store *Store) studioHandler {
 }
 
 // validFieldSong: Nur ein SONGS-Feld darf auf einen Song zeigen, und nur auf einen eigenen.
-func validFieldSong(w http.ResponseWriter, store *Store, owner string, f *Field) bool {
+func validFieldSong(w http.ResponseWriter, st *store.Store, owner string, f *store.Field) bool {
 	if f.Type != "songs" {
 		f.SongID = 0
 		return true
@@ -271,7 +261,7 @@ func validFieldSong(w http.ResponseWriter, store *Store, owner string, f *Field)
 	if f.SongID == 0 {
 		return true
 	}
-	if _, err := store.GetSong(owner, f.SongID); err != nil {
+	if _, err := st.GetSong(owner, f.SongID); err != nil {
 		writeJSON(w, http.StatusBadRequest, errMsg("unbekannte song_id"))
 		return false
 	}
@@ -306,7 +296,7 @@ func readJSON(w http.ResponseWriter, r *http.Request, v any) bool {
 }
 
 func writeStoreError(w http.ResponseWriter, err error) {
-	if errors.Is(err, errNotFound) {
+	if errors.Is(err, store.ErrNotFound) {
 		writeJSON(w, http.StatusNotFound, errMsg("nicht gefunden"))
 		return
 	}

@@ -1,4 +1,4 @@
-package main
+package mail
 
 import (
 	"fmt"
@@ -15,7 +15,7 @@ type Mailer struct {
 	baseURL                      string
 }
 
-func newMailerFromEnv() *Mailer {
+func NewFromEnv() *Mailer {
 	m := &Mailer{
 		host:    os.Getenv("SMTP_HOST"),
 		port:    os.Getenv("SMTP_PORT"),

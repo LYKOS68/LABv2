@@ -1,12 +1,14 @@
-package main
+package server
 
 import (
 	"html/template"
 	"log"
 	"net/http"
+
+	"rap-lab/cmd/lab-studio/internal/auth"
 )
 
-// Farben kommen aus web/static/brand.css (gemeinsam mit LAB-STUDIO).
+// Farben kommen aus cmd/lab-studio/web/static/brand.css (gemeinsam mit LAB-STUDIO).
 const baseCSS = `
 body{background:var(--bg);color:var(--fg);font-family:var(--font);margin:0;padding:0;overflow-x:hidden}
 header{display:flex;justify-content:space-between;align-items:center;padding:12px 24px;border-bottom:1px solid #1a1a1a}
@@ -194,8 +196,8 @@ type pageData struct {
 	Token      string
 }
 
-func render(w http.ResponseWriter, r *http.Request, store *Store, contentName string, data pageData) {
-	data.CSRFToken = csrfTokenFor(w, r, store)
+func render(w http.ResponseWriter, r *http.Request, csrf *auth.CSRF, contentName string, data pageData) {
+	data.CSRFToken = csrf.Token(w, r)
 	clone, err := tpl.Clone()
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)

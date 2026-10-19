@@ -1,41 +1,45 @@
-package main
+package server
 
 import (
 	"log"
 	"net/http"
+
+	"rap-lab/cmd/lab-studio/internal/auth"
+	"rap-lab/cmd/lab-studio/internal/mail"
+	"rap-lab/cmd/lab-studio/internal/store"
 )
 
-func currentUser(r *http.Request, store *Store) (*User, string, bool) {
+func currentUser(r *http.Request, st *store.Store) (*store.User, string, bool) {
 	c, err := r.Cookie("session_token")
 	if err != nil {
 		return nil, "", false
 	}
-	u, ok := store.UserByToken(c.Value)
+	u, ok := st.UserByToken(c.Value)
 	if !ok {
 		return nil, "", false
 	}
 	return u, c.Value, true
 }
 
-func homeHandler(store *Store) http.HandlerFunc {
+func homeHandler(st *store.Store, csrf *auth.CSRF) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)
 			return
 		}
-		u, _, loggedIn := currentUser(r, store)
+		u, _, loggedIn := currentUser(r, st)
 		data := pageData{LoggedIn: loggedIn}
 		if loggedIn {
 			data.Email = u.Email
 		}
-		render(w, r, store, "content-home", data)
+		render(w, r, csrf, "content-home", data)
 	}
 }
 
 // sendVerification erzeugt einen Token und verschickt den Link. Fehler werden nur geloggt:
 // das Konto existiert bereits, und der Link kann ueber /resend-verification neu angefordert werden.
-func sendVerification(store *Store, mailer *Mailer, email string) {
-	token, err := store.CreateVerification(email)
+func sendVerification(st *store.Store, mailer *mail.Mailer, email string) {
+	token, err := st.CreateVerification(email)
 	if err != nil {
 		log.Printf("create verification for %s: %v", email, err)
 		return
@@ -46,164 +50,164 @@ func sendVerification(store *Store, mailer *Mailer, email string) {
 }
 
 // forgotPasswordHandler antwortet immer gleich, egal ob die E-Mail existiert.
-func forgotPasswordHandler(store *Store, limiter *RateLimiter, mailer *Mailer) http.HandlerFunc {
+func forgotPasswordHandler(st *store.Store, csrf *auth.CSRF, limiter *auth.RateLimiter, mailer *mail.Mailer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
-			render(w, r, store, "content-forgot", pageData{})
+			render(w, r, csrf, "content-forgot", pageData{})
 			return
 		}
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if !checkCSRF(w, r, store) {
+		if !csrf.Check(w, r) {
 			return
 		}
-		if !allowOrTooManyRequests(w, limiter, "forgot:"+clientIP(r)) {
+		if !limiter.AllowOrTooManyRequests(w, "forgot:"+auth.ClientIP(r)) {
 			return
 		}
 		email := r.FormValue("email")
-		if store.AccountExists(email) {
-			token, err := store.CreatePasswordReset(email)
+		if st.AccountExists(email) {
+			token, err := st.CreatePasswordReset(email)
 			if err != nil {
 				log.Printf("create password reset for %s: %v", email, err)
 			} else if err := mailer.SendPasswordResetLink(email, token); err != nil {
 				log.Printf("send password reset mail to %s: %v", email, err)
 			}
 		}
-		render(w, r, store, "content-forgot-sent", pageData{Email: email})
+		render(w, r, csrf, "content-forgot-sent", pageData{Email: email})
 	}
 }
 
 // resetPasswordHandler zeigt beim GET nur das Formular; der Token wird erst beim POST
 // mit gueltigem neuem Passwort verbraucht (Mail-Scanner oeffnen Links vorab).
-func resetPasswordHandler(store *Store, limiter *RateLimiter) http.HandlerFunc {
+func resetPasswordHandler(st *store.Store, csrf *auth.CSRF, limiter *auth.RateLimiter) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
-			render(w, r, store, "content-reset", pageData{Token: r.URL.Query().Get("token")})
+			render(w, r, csrf, "content-reset", pageData{Token: r.URL.Query().Get("token")})
 			return
 		}
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if !checkCSRF(w, r, store) {
+		if !csrf.Check(w, r) {
 			return
 		}
-		if !allowOrTooManyRequests(w, limiter, "reset:"+clientIP(r)) {
+		if !limiter.AllowOrTooManyRequests(w, "reset:"+auth.ClientIP(r)) {
 			return
 		}
 		token := r.FormValue("token")
-		if msg := validateNewPassword(r.FormValue("password"), r.FormValue("confirm")); msg != "" {
-			render(w, r, store, "content-reset", pageData{Error: msg, Token: token})
+		if msg := auth.ValidateNewPassword(r.FormValue("password"), r.FormValue("confirm")); msg != "" {
+			render(w, r, csrf, "content-reset", pageData{Error: msg, Token: token})
 			return
 		}
-		if err := store.ResetPassword(token, r.FormValue("password")); err != nil {
-			if err != errInvalidToken {
+		if err := st.ResetPassword(token, r.FormValue("password")); err != nil {
+			if err != store.ErrInvalidToken {
 				log.Printf("reset password: %v", err)
 			}
-			render(w, r, store, "content-reset-result", pageData{Error: errInvalidToken.Error()})
+			render(w, r, csrf, "content-reset-result", pageData{Error: store.ErrInvalidToken.Error()})
 			return
 		}
-		render(w, r, store, "content-reset-result", pageData{})
+		render(w, r, csrf, "content-reset-result", pageData{})
 	}
 }
 
-func registerHandler(store *Store, limiter *RateLimiter, mailer *Mailer) http.HandlerFunc {
+func registerHandler(st *store.Store, csrf *auth.CSRF, limiter *auth.RateLimiter, mailer *mail.Mailer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
-			render(w, r, store, "content-register", pageData{})
+			render(w, r, csrf, "content-register", pageData{})
 			return
 		}
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if !checkCSRF(w, r, store) {
+		if !csrf.Check(w, r) {
 			return
 		}
-		if !allowOrTooManyRequests(w, limiter, "register:"+clientIP(r)) {
+		if !limiter.AllowOrTooManyRequests(w, "register:"+auth.ClientIP(r)) {
 			return
 		}
 		email := r.FormValue("email")
 		password := r.FormValue("password")
 		confirm := r.FormValue("confirm")
-		if msg := validateRegistration(email, password, confirm); msg != "" {
-			render(w, r, store, "content-register", pageData{Error: msg, Email: email})
+		if msg := auth.ValidateRegistration(email, password, confirm); msg != "" {
+			render(w, r, csrf, "content-register", pageData{Error: msg, Email: email})
 			return
 		}
-		if err := store.CreateUser(email, password); err != nil {
-			render(w, r, store, "content-register", pageData{Error: err.Error(), Email: email})
+		if err := st.CreateUser(email, password); err != nil {
+			render(w, r, csrf, "content-register", pageData{Error: err.Error(), Email: email})
 			return
 		}
-		sendVerification(store, mailer, email)
-		render(w, r, store, "content-verify-sent", pageData{Email: email})
+		sendVerification(st, mailer, email)
+		render(w, r, csrf, "content-verify-sent", pageData{Email: email})
 	}
 }
 
-func verifyHandler(store *Store) http.HandlerFunc {
+func verifyHandler(st *store.Store, csrf *auth.CSRF) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if err := store.VerifyEmail(r.URL.Query().Get("token")); err != nil {
-			if err != errInvalidToken {
+		if err := st.VerifyEmail(r.URL.Query().Get("token")); err != nil {
+			if err != store.ErrInvalidToken {
 				log.Printf("verify email: %v", err)
 			}
-			render(w, r, store, "content-verify-result", pageData{Error: errInvalidToken.Error()})
+			render(w, r, csrf, "content-verify-result", pageData{Error: store.ErrInvalidToken.Error()})
 			return
 		}
-		render(w, r, store, "content-verify-result", pageData{})
+		render(w, r, csrf, "content-verify-result", pageData{})
 	}
 }
 
 // resendVerificationHandler antwortet immer gleich, egal ob die E-Mail existiert, damit
 // sich darueber nicht herausfinden laesst, welche Adressen registriert sind.
-func resendVerificationHandler(store *Store, limiter *RateLimiter, mailer *Mailer) http.HandlerFunc {
+func resendVerificationHandler(st *store.Store, csrf *auth.CSRF, limiter *auth.RateLimiter, mailer *mail.Mailer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if !checkCSRF(w, r, store) {
+		if !csrf.Check(w, r) {
 			return
 		}
-		if !allowOrTooManyRequests(w, limiter, "resend:"+clientIP(r)) {
+		if !limiter.AllowOrTooManyRequests(w, "resend:"+auth.ClientIP(r)) {
 			return
 		}
 		email := r.FormValue("email")
-		if store.IsUnverified(email) {
-			sendVerification(store, mailer, email)
+		if st.IsUnverified(email) {
+			sendVerification(st, mailer, email)
 		}
-		render(w, r, store, "content-verify-sent", pageData{Email: email})
+		render(w, r, csrf, "content-verify-sent", pageData{Email: email})
 	}
 }
 
-func loginHandler(store *Store, limiter *RateLimiter) http.HandlerFunc {
+func loginHandler(st *store.Store, csrf *auth.CSRF, limiter *auth.RateLimiter) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
-			render(w, r, store, "content-login", pageData{})
+			render(w, r, csrf, "content-login", pageData{})
 			return
 		}
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if !checkCSRF(w, r, store) {
+		if !csrf.Check(w, r) {
 			return
 		}
-		if !allowOrTooManyRequests(w, limiter, "login:"+clientIP(r)) {
+		if !limiter.AllowOrTooManyRequests(w, "login:"+auth.ClientIP(r)) {
 			return
 		}
 		email := r.FormValue("email")
 		password := r.FormValue("password")
-		u, err := store.Authenticate(email, password)
+		u, err := st.Authenticate(email, password)
 		if err != nil {
-			render(w, r, store, "content-login", pageData{Error: err.Error(), Email: email, ShowResend: err == errNotVerified})
+			render(w, r, csrf, "content-login", pageData{Error: err.Error(), Email: email, ShowResend: err == store.ErrNotVerified})
 			return
 		}
-		token, err := store.CreateSession(u.Email)
+		token, err := st.CreateSession(u.Email)
 		if err != nil {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
@@ -219,43 +223,43 @@ func loginHandler(store *Store, limiter *RateLimiter) http.HandlerFunc {
 	}
 }
 
-func logoutHandler(store *Store) http.HandlerFunc {
+func logoutHandler(st *store.Store, csrf *auth.CSRF) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if !checkCSRF(w, r, store) {
+		if !csrf.Check(w, r) {
 			return
 		}
 		if c, err := r.Cookie("session_token"); err == nil {
-			store.DeleteSession(c.Value)
+			st.DeleteSession(c.Value)
 		}
 		http.SetCookie(w, &http.Cookie{Name: "session_token", Value: "", Path: "/", MaxAge: -1})
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	}
 }
 
-func deleteAccountHandler(store *Store) http.HandlerFunc {
+func deleteAccountHandler(st *store.Store, csrf *auth.CSRF) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if !checkCSRF(w, r, store) {
+		if !csrf.Check(w, r) {
 			return
 		}
-		u, token, loggedIn := currentUser(r, store)
+		u, token, loggedIn := currentUser(r, st)
 		if !loggedIn {
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
 		}
-		if err := store.DeleteUser(u.Email); err != nil {
+		if err := st.DeleteUser(u.Email); err != nil {
 			log.Printf("delete-account error: %v", err)
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
-		store.DeleteSession(token)
+		st.DeleteSession(token)
 		http.SetCookie(w, &http.Cookie{Name: "session_token", Value: "", Path: "/", MaxAge: -1})
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	}

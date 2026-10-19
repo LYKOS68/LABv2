@@ -1,7 +1,7 @@
 # Branch-Manifest: termux-pull
 
 Verbindliche Grundlage der mobilen Entwicklungsarbeit.
-Erstellt in der lokalen Projekt-Root. Stand: 2026-10-18.
+Erstellt in der lokalen Projekt-Root am 2026-10-18. Stand: 2026-10-19.
 Status: aktiv (Schritt 5/5 abgeschlossen — nur dieses Manifest wurde erstellt).
 
 ---
@@ -13,7 +13,7 @@ Status: aktiv (Schritt 5/5 abgeschlossen — nur dieses Manifest wurde erstellt)
 | Auftragsname | Repository `RAP-LABv2` | Auftrag 1/5 |
 | Geprüfter Remote | `https://github.com/LYKOS68/LABv2.git` | `git remote -v` |
 | Projektbezeichnung | RAP-LAB (Modul `rap-lab`) | `go.mod:1`, `README.md:3` |
-| Branch | `termux-pull`, HEAD `4e87fa1`, synchron mit `origin/termux-pull` | `git branch -vv` |
+| Branch | `termux-pull`; vor step4 HEAD `f968a14` (step3), synchron mit `origin/termux-pull` | `git branch -vv` |
 | Lokaler Arbeitsbereich | Projekt-Root `/root/github/LABv2` | aktuelles Verzeichnis |
 | Laufzeitkontext | Linux-Konsole, OpenCode CLI, Modell Big Pickle | Umgebungssitzung |
 
@@ -31,7 +31,7 @@ Beleg der Branch-Bestimmung im Projekt selbst: `README.md:1` —
 
 ## 3. Arbeitsregeln
 
-1. ** zunächst ausschließlich lokal.** Alle Arbeit dieser Branch findet im lokalen Arbeitsbereich `/root/github/LABv2` statt.
+1. **Zunächst ausschließlich lokal.** Alle Arbeit dieser Branch findet im lokalen Arbeitsbereich `/root/github/LABv2` statt.
 2. **Remote-Änderungen und Pushes sind bis zur ausdrücklichen Freigabe verboten.** Kein `git push`, keine Änderung an `origin`, keine Umbenennungen, keine Remote-Deletes.
 3. Bestehende lokale, uncommittete Zustände bleiben unberührt (siehe §4), solange kein Auftrag sie adressiert.
 4. **Späterer PC-Workflow (nach Freigabe):** Änderungen dieser Branch am PC prüfen (`git log`, `git diff` gegen den PC-Stand) → einzeln übernehmen (Merge/Cherry-Pick) oder verwerfen → erst danach PC-seitig committen/pushen. Übernahme und Verwerfung sind getrennte, je zu beurteilende Entscheidungen.
@@ -75,7 +75,8 @@ Aufnahmebasis für die spätere Root-Neuordnung. Nichts wurde verschoben oder ge
   .gitignore                 ignoriert /data/*
   .vscode/tasks.json         VS-Code-Aufgabe „Server starten" (PC-Herkunft)
   README.md                  Projekt- und Pfaddoku, Branch-Zweck in Zeile 1
-  cmd/lab-studio/            das Programm (Go, Web-Assets unter cmd/lab-studio/web/)
+  cmd/lab-studio/            das Programm: main.go (Start), internal/ (store, auth, mail, server),
+                             web/ (Seiten und Web-Assets, eingebunden über web/embed.go)
   go.mod / go.sum            Modul `rap-lab`, Go 1.27.0
   hub/                       Zentrale: LOCK_ORDER/ (Regeln, Pruefprotokoll, Werkzeuge),
                              knowledge/brand/ (Markenmaterial), user/ (prompt-vorlage.yaml,
@@ -83,20 +84,21 @@ Aufnahmebasis für die spätere Root-Neuordnung. Nichts wurde verschoben oder ge
                              chatroom.schema.json, git-befehlspal.txt
 ```
 
-Aktualisiert 2026-10-19 nach der `hub/`-Neuordnung (Stand LOCK-2026.10.19-4).
+Aktualisiert 2026-10-19 nach der `hub/`-Neuordnung und dem Runtime-Umbau step4 (Stand LOCK-2026.10.19-5).
 
 Git-Arbeitszustand:
 
-- `test2.txt`: gelöscht und mit Commit `7e8a745` („step1") übernommen.
-- `hub/git-befehlspal.txt`, `branch-termux-pull-manifest.md`, `hub/LOCK_ORDER/`: mit `7e8a745` committet und gepusht.
-- Nach `7e8a745` lokal, noch nicht committet: `hub/`-Neuordnung (brand → knowledge/brand, mitglieder.csv → user), Regel- und Doku-Anpassungen.
+- `4d53692` „step1": `test2.txt` gelöscht; `hub/git-befehlspal.txt`, `branch-termux-pull-manifest.md`, `hub/LOCK_ORDER/` angelegt. Committet und gepusht. (Der früher hier genannte Commit `7e8a745` existiert noch, gehört aber nicht mehr zur Branch-Historie.)
+- `346e324` „step2": `hub/`-Neuordnung (brand → knowledge/brand, mitglieder.csv → user), Regel- und Doku-Anpassungen. Committet und gepusht.
+- `f968a14` „step3": Zugriffsregel festgeschrieben, Smoke L6 abgelegt. Committet und gepusht.
+- „step4": Runtime unter `cmd/lab-studio/` in `internal/`-Pakete aufgeteilt (`store`, `auth`, `mail`, `server`); CSRF vom Store getrennt; URLs, Datenbank-Schema und Verhalten unverändert; `gofmt`, `go vet`, `go test ./...` (37/37) grün. Lokal committet, **nicht gepusht**. Offen für die PC-Prüfung: `go test -race ./...` (läuft in Termux nicht, 39-Bit-VMA) und neuer LOCK_ORDER-Stand, da Smoke S4 („Runtime unberührt") nach step4 erwartungsgemäß fehlschlägt.
 
 Bestehende Abhängigkeiten:
 
 - `data/` entsteht zur Laufzeit, ist git-ignoriert, nie auf GitHub (`README.md:60`, `.gitignore`).
 - `cmd/lab-studio` läuft mit `go run ./cmd/lab-studio`, Prüfung `go test ./...` (`README.md:49`, `README.md:54`).
 - `hub/` ist die Zentrale (Roman, CLI, Projektkontext, Knowledge) mit `LOCK_ORDER/`, `knowledge/`, `user/`, `shared/` (`README.md:67-74`).
-- `hub/LOCK_ORDER/LOCK_ORDER.md` ist die verbindliche Regeldatei (Stand `LOCK-2026.10.19-4`); die Plan-/Ledger-Infrastruktur des rap-lab-Über-Projekts (`__hub-docs/`) existiert hier **nicht**.
+- `hub/LOCK_ORDER/LOCK_ORDER.md` ist die verbindliche Regeldatei (Stand `LOCK-2026.10.19-5`); die Plan-/Ledger-Infrastruktur des rap-lab-Über-Projekts (`__hub-docs/`) existiert hier **nicht**.
 
 ### Lücken dieser Aufnahme
 
@@ -118,8 +120,8 @@ Bestehende Abhängigkeiten:
 
 | Bereich | Ort | Status |
 |---|---|---|
-| Programm | `cmd/` | Bestand |
-| Regeln/Prüfungen | `hub/LOCK_ORDER/` | umgesetzt (Stand `LOCK-2026.10.19-4`) |
+| Programm | `cmd/` | Bestand; seit step4 gegliedert in `cmd/lab-studio/internal/` |
+| Regeln/Prüfungen | `hub/LOCK_ORDER/` | umgesetzt (Stand `LOCK-2026.10.19-5`) |
 | Projektwissen | `hub/knowledge/` (mit `brand/`) | umgesetzt |
 | Persönliches | `hub/user/` | umgesetzt |
 | Übergaben/Ergebnisse | `hub/shared/` | deklariert, leer |
@@ -134,4 +136,4 @@ Bestehende Abhängigkeiten:
 - Schritt 4/5 → Rückkopplung: Repository, Branch, Arbeitsumgebung, Regeln, Pfad- und Herkunftsaussagen gegen den realen Zustand abgeglichen; Widersprüche korrigiert (Namensdifferenz §1, nicht existierende Plan-Infrastruktur §5, PC-Pfade als Lücken §5)
 - Schritt 5/5 → nur dieses Manifest erstellt; lokale Zustände bewahrt; gewartet auf den nächsten ausdrücklichen Bauauftrag
 
-**Zusammenfassung:** Manifest 1 | `hub/`-Neuordnung umgesetzt | lokale Zustände bewahrt | Remote/Push nur für `7e8a745` (step1) | Lücken 3 (PC-Pfade, PC-Struktur, git-befehlspal-Bewertung) | Stand `LOCK-2026.10.19-4`
+**Zusammenfassung:** Manifest 1 | `hub/`-Neuordnung umgesetzt | lokale Zustände bewahrt | step1–step3 gepusht, step4 nur lokal | Lücken 3 (PC-Pfade, PC-Struktur, git-befehlspal-Bewertung) | Stand `LOCK-2026.10.19-5`
