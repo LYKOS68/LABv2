@@ -1,2 +1,6 @@
 /data/*
 !/data/.gitkeep
+/.vscode/*
+!/vscode/.gitkeep
+/.claude/*
+!/.claude/.gitkeep
