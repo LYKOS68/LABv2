@@ -1,0 +1,91 @@
+{{define "content-register"}}
+<h1>Registrieren</h1>
+{{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+<form method="post" action="/register">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+  <input type="email" name="email" placeholder="E-Mail" value="{{.Email}}" required>
+  <input type="password" name="password" placeholder="Passwort (min. 8 Zeichen)" required>
+  <input type="password" name="confirm" placeholder="Passwort wiederholen" required>
+  <button type="submit">Konto erstellen</button>
+</form>
+<p class="switch">Schon ein Konto? <a href="/login">Anmelden</a></p>
+{{end}}
+
+{{define "content-login"}}
+<h1>Anmelden</h1>
+{{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+<form method="post" action="/login">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+  <input type="email" name="email" placeholder="E-Mail" value="{{.Email}}" required>
+  <input type="password" name="password" placeholder="Passwort" required>
+  <button type="submit">Anmelden</button>
+</form>
+{{if .ShowResend}}
+<form method="post" action="/resend-verification">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+  <input type="hidden" name="email" value="{{.Email}}">
+  <button type="submit">Bestaetigungslink erneut senden</button>
+</form>
+{{end}}
+<p class="switch"><a href="/forgot-password">Passwort vergessen?</a></p>
+<p class="switch">Noch kein Konto? <a href="/register">Registrieren</a></p>
+{{end}}
+
+{{define "content-forgot"}}
+<h1>Passwort vergessen</h1>
+<p class="switch">Gib deine E-Mail-Adresse ein. Wir schicken dir einen Link, mit dem du ein neues Passwort setzen kannst.</p>
+<form method="post" action="/forgot-password">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+  <input type="email" name="email" placeholder="E-Mail" required>
+  <button type="submit">Link anfordern</button>
+</form>
+<p class="switch"><a href="/login">Zurueck zur Anmeldung</a></p>
+{{end}}
+
+{{define "content-forgot-sent"}}
+<h1>Passwort vergessen</h1>
+<p class="ok">Falls ein Konto mit {{.Email}} existiert, haben wir dir einen Link geschickt.</p>
+<p class="switch">Der Link ist 1 Stunde gueltig.</p>
+<p class="switch"><a href="/login">Zur Anmeldung</a></p>
+{{end}}
+
+{{define "content-reset"}}
+<h1>Neues Passwort</h1>
+{{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+<form method="post" action="/reset-password">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+  <input type="hidden" name="token" value="{{.Token}}">
+  <input type="password" name="password" placeholder="Neues Passwort (min. 8 Zeichen)" required>
+  <input type="password" name="confirm" placeholder="Passwort wiederholen" required>
+  <button type="submit">Passwort speichern</button>
+</form>
+{{end}}
+
+{{define "content-reset-result"}}
+<h1>Neues Passwort</h1>
+{{if .Error}}
+<p class="error">{{.Error}}</p>
+<p class="switch"><a href="/forgot-password">Neuen Link anfordern</a></p>
+{{else}}
+<p class="ok">Dein Passwort wurde geaendert.</p>
+<p class="switch"><a href="/login">Jetzt anmelden</a></p>
+{{end}}
+{{end}}
+
+{{define "content-verify-sent"}}
+<h1>Fast geschafft</h1>
+<p class="ok">Wir haben einen Bestaetigungslink an {{.Email}} geschickt.</p>
+<p class="switch">Klicke auf den Link in der E-Mail, um dein Konto freizuschalten. Der Link ist 24 Stunden gueltig.</p>
+<p class="switch"><a href="/login">Zur Anmeldung</a></p>
+{{end}}
+
+{{define "content-verify-result"}}
+<h1>E-Mail-Bestaetigung</h1>
+{{if .Error}}
+<p class="error">{{.Error}}</p>
+<p class="switch">Melde dich an, um einen neuen Link anzufordern. <a href="/login">Anmelden</a></p>
+{{else}}
+<p class="ok">Deine E-Mail-Adresse ist bestaetigt.</p>
+<p class="switch"><a href="/login">Jetzt anmelden</a></p>
+{{end}}
+{{end}}

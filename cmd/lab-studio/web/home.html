@@ -1,0 +1,28 @@
+{{define "content-home"}}
+<h1 class="schriftzug"><img src="/static/img/schriftzug.png" alt="RAP-LAB"></h1>
+<p class="tagline">Ein Ort für das, was zwischen Idee und Musik passiert.</p>
+<div class="points">
+<p>Musik entwickeln.</p>
+<p>Menschen finden.</p>
+<p>Zusammenarbeiten.</p>
+<p>Weiterkommen.</p>
+</div>
+<div class="fliesstext">Denn mal ehrlich:
+
+Du kannst den nächsten Song auch wieder in deinen Handy-Notizen schreiben.
+Den Producer kannst du wieder über fünf Ecken suchen.
+Den Mixer wieder in irgendeiner Instagram-Story finden.
+Den Videografen wieder irgendwo in einem Discord-Server suchen.
+Und deine Brancheninformationen kannst du dir wieder aus zehn verschiedenen Quellen zusammensuchen.
+Oder du hörst irgendwann auf, deinen Musikprozess aus Einzelteilen zusammenzubauen.</div>
+<p class="ende">RAP-LAB.</p>
+{{if .LoggedIn}}
+<div class="account-bar">
+  Angemeldet als {{.Email}} &middot;
+  <form method="post" action="/delete-account" style="display:inline">
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    <button type="submit" onclick="return confirm('Account wirklich endgueltig loeschen?')">Account loeschen</button>
+  </form>
+</div>
+{{end}}
+{{end}}

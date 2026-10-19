@@ -1,0 +1,28 @@
+/* Seitenlayout fuer Startseite und Konto-Seiten. Farben kommen aus brand.css. */
+body{background:var(--bg);color:var(--fg);font-family:var(--font);margin:0;padding:0;overflow-x:hidden}
+header{display:flex;justify-content:space-between;align-items:center;padding:12px 24px;border-bottom:1px solid #1a1a1a}
+header nav{display:flex;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+header a{color:var(--gold);text-decoration:none;letter-spacing:2px;margin-left:24px}
+.brand{display:block;margin:0;line-height:0}
+.brand img{height:48px;width:auto}
+main{max-width:720px;margin:0 auto;padding:32px 24px}
+h1{color:var(--gold);text-align:center}
+.schriftzug{margin:16px 0 24px;line-height:0}
+.schriftzug img{display:block;width:100%;height:auto}
+.tagline{color:var(--gold);text-align:center;text-transform:uppercase;letter-spacing:1px;font-size:20px;line-height:1.5;margin:0 0 40px}
+.points{margin-bottom:32px}
+.points p{color:var(--fg);text-align:center;font-weight:bold;text-transform:uppercase;letter-spacing:2px;font-size:19px;margin:6px 0}
+.fliesstext{margin:0 calc(50% - 50vw);padding:32px max(24px,calc(50vw - 336px));white-space:pre-line;font-size:18px;line-height:1.6;background:linear-gradient(rgba(0,0,0,.82),rgba(0,0,0,.82)),url(/static/img/leder-hintergrund.jpg) center/cover}
+.ende{color:var(--gold);text-align:center;font-weight:bold;letter-spacing:3px;font-size:20px;margin-top:32px}
+form{display:flex;flex-direction:column;gap:12px;max-width:360px;margin:32px auto}
+input{padding:10px;background:var(--bg);border:1px solid var(--brown);border-radius:8px;color:var(--fg)}
+button{padding:10px;background:transparent;border:1px solid var(--neon);border-radius:6px;color:var(--neon);font-weight:bold;cursor:pointer}
+button:hover{background:var(--neon);color:var(--bg)}
+.error{color:var(--error);text-align:center}
+.ok{color:var(--neon);text-align:center}
+.account-bar{text-align:center;margin-top:24px}
+.switch{text-align:center;color:var(--gold);font-size:13px}
+.switch a{color:var(--neon)}
+.nav-btn{background:none;border:none;color:var(--gold);text-decoration:none;font-weight:normal;letter-spacing:2px;margin-left:24px;padding:0;cursor:pointer;font-size:inherit;font-family:inherit}
+.nav-btn:hover{background:none;color:var(--neon)}
+@media (max-width:600px){header{padding:10px 16px}header a,.nav-btn{margin-left:14px;letter-spacing:1px;font-size:14px}.brand img{height:40px}.tagline{font-size:17px}.points p{font-size:16px}.fliesstext{font-size:16px}}

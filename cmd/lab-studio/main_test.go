@@ -460,10 +460,13 @@ func TestVerifyPasswordRejectsCorruptHashWithoutPanic(t *testing.T) {
 
 func TestHomeShowsBrandImages(t *testing.T) {
 	web := newBrowser(t, newTestStore(t))
-	home := web.get("/")
-	images := []string{"krone.jpg", "schriftzug.png", "leder-hintergrund.jpg"}
-	for _, name := range images {
-		expectContains(t, home, "/static/img/"+name)
+	pages := map[string]string{
+		"krone.jpg":             web.get("/"),
+		"schriftzug.png":        web.get("/"),
+		"leder-hintergrund.jpg": web.get("/static/site.css"),
+	}
+	for name, page := range pages {
+		expectContains(t, page, "/static/img/"+name)
 		resp, err := web.client.Get(web.base + "/static/img/" + name)
 		if err != nil {
 			t.Fatalf("GET %s: %v", name, err)
