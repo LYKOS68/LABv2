@@ -1,0 +1,115 @@
+**Git/GitHub Befehle - kurz erklärt**
+
+### Repo/Branch
+```bash
+git status                        # Zeigt Status (geänderte, ungetrackte Dateien)
+git branch                        # Zeigt nur lokale Branches
+git branch -a                     # Zeigt alle Branches (lokal + remote)
+git branch -vv                    # Zeigt Branches + Remote-Tracking + letzter Commit
+git branch -d <branch>             # Löscht lokalen Branch (nach Merge)
+git branch -D <branch>             # Löscht lokalen Branch (erzwingt)
+git switch <branch>                # Wechselt zu Branch (modern, empfohlen)
+git checkout <branch>              # Wechselt zu Branch (alt, funktioniert noch)
+git switch -c <branch>             # Erstellt neuen lokalen Branch
+git switch -c <branch> origin/<branch> # Erstellt lokalen Branch aus Remote
+git remote -v                      # Zeigt Remote-URLs
+git remote add <name> <url>        # Fügt neuen Remote hinzu
+git remote remove <name>           # Entfernt Remote
+git remote set-url <name> <url>    # Ändert Remote-URL
+git remote prune origin            # Räumt lokal gelöschte Remote-Branches weg
+git fetch                          # Holt Remote-Änderungen ohne Merge
+git fetch --all                    # Holt Änderungen von allen Remotes
+git pull origin <branch>           # Holt aktuelle Änderungen vom Remote-Branch & merged
+git pull --rebase origin <branch>  # Holt aktuelle Änderungen & rebased (sauberer)
+git push origin <branch>           # Pushst lokale Commits zum Remote-Branch
+git push -u origin <branch>        # Pushst & setzt Upstream fürs Tracking
+git push --force-with-lease        # Sichere Force-Push (nur wenn Remote unverändert)
+git push --force                   # Force-Push (gefährlich!)
+```
+
+### Änderungen
+```bash
+git add .                         # Stellt alle Änderungen zum Commit bereit
+git add <datei>                   # Stellt nur bestimmte Datei zum Commit bereit
+git commit -m "msg"               # Commited mit Nachricht
+git commit --amend                # Letzten Commit ändern (Nachricht/Änderungen)
+git log --oneline -5              # Letzte 5 Commits (kurz)
+git log --oneline -10             # Letzte 10 Commits (kurz)
+git log --graph --oneline -10     # Commit-Verlauf grafisch
+git diff                          # Zeigt lokale Änderungen
+git diff --staged                 # Zeigt Änderungen im Stage
+```
+
+### Zwischenspeichern & Bereinigen
+```bash
+git stash                         # Zwischenspeichert uncommittete Änderungen
+git stash list                    # Zeigt alle Stashes
+git stash pop                     # Holt zwischengespeicherte Änderungen zurück
+git stash apply                   # Holt Stash zurück (behält ihn in Liste)
+git stash drop                    # Löscht einen Stash
+git clean -fdn                    # Zeigt, was gelöscht würde (Dry-Run)
+git clean -fd                     # Löscht ungetrackte Dateien/Ordner (nicht rückgängig)
+```
+
+### Rückgängig & Verlauf
+```bash
+git reset --soft HEAD~1           # Letzten Commit rückgängig (Änderungen bleiben im Stage)
+git reset --mixed HEAD~1          # Letzten Commit rückgängig (Änderungen bleiben unstaged)
+git reset --hard HEAD~1           # Letzten Commit rückgängig (Änderungen gehen verloren!)
+git restore <datei>               # Stellt Datei auf letzten Commit zurück
+git restore --staged <datei>      # Nimmt Datei aus Stage zurück
+git checkout -- <datei>           # Äquivalent zu git restore (alt)
+git reflog                        # Zeigt komplette Aktions-History
+git blame <datei>                 # Zeigt Autor + Commit pro Zeile
+git show <commit>                 # Zeigt Details eines bestimmten Commits
+```
+
+### Sync & Merge
+```bash
+git merge <branch>                # Merged anderen Branch in aktuellen
+git merge --abort                 # Bricht laufenden Merge ab
+git rebase <branch>               # Rebased aktuellen Branch auf anderen (sauberer Verlauf)
+git rebase --abort                # Bricht laufenden Rebase ab
+git cherry-pick <commit>          # Holt einzelnen Commit in aktuellen Branch
+git cherry-pick --abort           # Bricht Cherry-Pick ab
+```
+
+### Tags
+```bash
+git tag <name>                    # Erstellt lokalen Tag
+git tag -a <name> -m "msg"        # Annotierter Tag mit Nachricht
+git push origin <tag>             # Pusht Tag zum Remote
+git push --tags                   # Pusht alle Tags
+git tag -d <name>                 # Löscht lokalen Tag
+git push origin --delete <tag>    # Löscht Remote-Tag
+```
+
+### PR/Issue (gh CLI)
+```bash
+gh auth status                    # Prüft GitHub CLI Anmeldung
+gh auth login                     # Loggt in GitHub CLI ein
+gh pr list                        # Zeigt offene PRs
+gh pr list --state all            # Zeigt alle PRs
+gh pr view <nr>                   # Zeigt Details zu PR
+gh pr checkout <nr>               # Checkt PR lokal aus
+gh pr diff <nr>                   # Zeigt Diff eines PR
+gh pr close <nr>                  # Schließt PR
+gh pr reopen <nr>                 # Öffnet PR wieder
+gh pr merge <nr>                  # Merget PR
+gh pr create --base main --head <branch> --title "..." --body "..."  # PR erstellen
+gh issue list                     # Zeigt offene Issues
+gh issue list --state all         # Zeigt alle Issues
+gh issue view <nr>                # Zeigt Issue-Details
+gh issue close <nr>               # Schließt Issue
+gh issue reopen <nr>              # Öffnet Issue wieder
+gh issue create --title "..." --body "..."  # Issue erstellen
+gh run list                       # Zeigt GitHub Actions Runs
+gh repo view                      # Zeigt Repo-Info
+```
+
+### PR/Issue (Web)
+```text
+- PR: https://github.com/LYKOS68/LABv2/compare
+- Issue: https://github.com/LYKOS68/LABv2/issues/new
+- Actions: https://github.com/LYKOS68/LABv2/actions
+```
