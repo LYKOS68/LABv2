@@ -2,7 +2,9 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -10,7 +12,6 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -120,9 +121,66 @@ func TestLoginPageLinksToRegister(t *testing.T) {
 	expectContains(t, web.get("/login"), `href="/register">Registrieren<`)
 }
 
+// --- Test-Datenbank ---------------------------------------------------------------------
+// Jeder Test bekommt eine frische PostgreSQL-Datenbank. Ohne erreichbaren Server
+// (TEST_DATABASE_URL, sonst DATABASE_URL, sonst defaultDBURL) werden die DB-Tests
+// uebersprungen, damit die Suite auch ohne lokale Installation durchlaeuft.
+
+func testAdminDSN(t *testing.T) string {
+	t.Helper()
+	dsn := os.Getenv("TEST_DATABASE_URL")
+	if dsn == "" {
+		dsn = os.Getenv("DATABASE_URL")
+	}
+	if dsn == "" {
+		dsn = defaultDBURL
+	}
+	db, err := sql.Open("postgres", dsn)
+	if err != nil {
+		t.Skipf("postgresql not reachable (set TEST_DATABASE_URL): %v", err)
+	}
+	defer db.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if err := db.PingContext(ctx); err != nil {
+		t.Skipf("postgresql not reachable (set TEST_DATABASE_URL): %v", err)
+	}
+	return dsn
+}
+
+// newTestDSN legt eine leere Test-Datenbank an und loescht sie am Testende (WITH (FORCE),
+// damit auch offene Verbindungen der Store-Tests nicht stoeren; PostgreSQL 13+).
+func newTestDSN(t *testing.T) string {
+	t.Helper()
+	admin := testAdminDSN(t)
+	suffix, err := randomToken()
+	if err != nil {
+		t.Fatalf("random token: %v", err)
+	}
+	name := fmt.Sprintf("raplab_t_%s", suffix[:12])
+	adb, err := sql.Open("postgres", admin)
+	if err != nil {
+		t.Fatalf("open admin connection: %v", err)
+	}
+	if _, err := adb.Exec("CREATE DATABASE " + name); err != nil {
+		adb.Close()
+		t.Fatalf("create test database: %v", err)
+	}
+	t.Cleanup(func() {
+		adb.Exec("DROP DATABASE IF EXISTS " + name + " WITH (FORCE)")
+		adb.Close()
+	})
+	u, err := url.Parse(admin)
+	if err != nil {
+		t.Fatalf("parse admin dsn: %v", err)
+	}
+	u.Path = "/" + name
+	return u.String()
+}
+
 func newTestStore(t *testing.T) *Store {
 	t.Helper()
-	store, err := newStore(filepath.Join(t.TempDir(), "test.sqlite"))
+	store, err := newStore(newTestDSN(t))
 	if err != nil {
 		t.Fatalf("newStore: %v", err)
 	}
@@ -163,7 +221,7 @@ func TestVerifyEmailRejectsInvalidTokens(t *testing.T) {
 	}
 
 	// Abgelaufener Token: Ablaufzeit in die Vergangenheit setzen.
-	if _, err := store.db.Exec("UPDATE email_verifications SET expires_at = ?", time.Now().Add(-time.Minute).Unix()); err != nil {
+	if _, err := store.db.Exec("UPDATE email_verifications SET expires_at = $1", time.Now().Add(-time.Minute).Unix()); err != nil {
 		t.Fatalf("expire token: %v", err)
 	}
 	if err := store.VerifyEmail(token); err != errInvalidToken {
@@ -217,21 +275,25 @@ func TestResendReplacesOldToken(t *testing.T) {
 }
 
 func TestMigrationMarksExistingAccountsVerified(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "old.sqlite")
-	old, err := sql.Open("sqlite", path)
+	dsn := newTestDSN(t)
+	old, err := sql.Open("postgres", dsn)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
-	if _, err := old.Exec(`CREATE TABLE users (email TEXT NOT NULL UNIQUE COLLATE NOCASE, password_hash TEXT NOT NULL)`); err != nil {
+	// Altes Schema ohne verified-Spalte, aber bereits mit eindeutigem E-Mail-Index.
+	if _, err := old.Exec(`CREATE TABLE users (email TEXT NOT NULL, password_hash TEXT NOT NULL)`); err != nil {
 		t.Fatalf("create old schema: %v", err)
 	}
+	if _, err := old.Exec(`CREATE UNIQUE INDEX users_email_unique ON users (lower(email))`); err != nil {
+		t.Fatalf("create old unique index: %v", err)
+	}
 	hash, _ := hashPassword("sicheres1")
-	if _, err := old.Exec("INSERT INTO users VALUES (?, ?)", "alt@example.com", hash); err != nil {
+	if _, err := old.Exec("INSERT INTO users VALUES ($1, $2)", "alt@example.com", hash); err != nil {
 		t.Fatalf("insert: %v", err)
 	}
 	old.Close()
 
-	store, err := newStore(path)
+	store, err := newStore(dsn)
 	if err != nil {
 		t.Fatalf("newStore on old schema: %v", err)
 	}
@@ -293,7 +355,7 @@ func TestResetPasswordRejectsInvalidTokens(t *testing.T) {
 			t.Errorf("token %q: expected errInvalidToken, got %v", bad, err)
 		}
 	}
-	if _, err := store.db.Exec("UPDATE password_resets SET expires_at = ?", time.Now().Add(-time.Minute).Unix()); err != nil {
+	if _, err := store.db.Exec("UPDATE password_resets SET expires_at = $1", time.Now().Add(-time.Minute).Unix()); err != nil {
 		t.Fatalf("expire token: %v", err)
 	}
 	if err := store.ResetPassword(token, "neuespasswort"); err != errInvalidToken {
@@ -539,8 +601,8 @@ func TestManropeFontIsServedLocally(t *testing.T) {
 // --- Sitzungen und CSRF in der Datenbank ----------------------------------------------------
 
 func TestSessionAndCSRFSurviveRestart(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "restart.sqlite")
-	first, err := newStore(path)
+	dsn := newTestDSN(t)
+	first, err := newStore(dsn)
 	if err != nil {
 		t.Fatalf("newStore: %v", err)
 	}
@@ -557,7 +619,7 @@ func TestSessionAndCSRFSurviveRestart(t *testing.T) {
 	}
 	first.db.Close()
 
-	second, err := newStore(path)
+	second, err := newStore(dsn)
 	if err != nil {
 		t.Fatalf("reopen: %v", err)
 	}
@@ -574,7 +636,7 @@ func TestExpiredSessionIsRejected(t *testing.T) {
 	store := newTestStore(t)
 	store.CreateUser("a@example.com", "sicheres1")
 	session, _ := store.CreateSession("a@example.com")
-	if _, err := store.db.Exec("UPDATE sessions SET expires_at = ?", time.Now().Add(-time.Minute).Unix()); err != nil {
+	if _, err := store.db.Exec("UPDATE sessions SET expires_at = $1", time.Now().Add(-time.Minute).Unix()); err != nil {
 		t.Fatalf("expire session: %v", err)
 	}
 	if _, ok := store.UserByToken(session); ok {
@@ -588,7 +650,7 @@ func TestExpiredCSRFTokensAreCleanedUp(t *testing.T) {
 	for range 3 {
 		store.NewCSRFToken()
 	}
-	if _, err := store.db.Exec("UPDATE csrf_tokens SET expires_at = ?", time.Now().Add(-time.Minute).Unix()); err != nil {
+	if _, err := store.db.Exec("UPDATE csrf_tokens SET expires_at = $1", time.Now().Add(-time.Minute).Unix()); err != nil {
 		t.Fatalf("expire tokens: %v", err)
 	}
 	store.NewCSRFToken()

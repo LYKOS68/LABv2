@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
-	"path/filepath"
 	"regexp"
 	"testing"
 )
@@ -299,8 +298,8 @@ func TestStudioViewScaleIsClamped(t *testing.T) {
 // --- Speicherung --------------------------------------------------------------------------
 
 func TestStudioDataSurvivesRestart(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "restart.sqlite")
-	first, err := newStore(path)
+	dsn := newTestDSN(t)
+	first, err := newStore(dsn)
 	if err != nil {
 		t.Fatalf("newStore: %v", err)
 	}
@@ -310,7 +309,7 @@ func TestStudioDataSurvivesRestart(t *testing.T) {
 	first.SaveView("a@example.com", View{X: 3, Y: 4, Scale: 2})
 	first.db.Close()
 
-	second, err := newStore(path)
+	second, err := newStore(dsn)
 	if err != nil {
 		t.Fatalf("reopen: %v", err)
 	}

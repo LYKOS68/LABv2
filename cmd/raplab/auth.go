@@ -21,6 +21,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/lib/pq"
 	"golang.org/x/crypto/argon2"
 )
 
@@ -54,9 +55,13 @@ type User struct {
 
 func createAuthTables(db *sql.DB) error {
 	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS users (
-		email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+		email TEXT NOT NULL,
 		password_hash TEXT NOT NULL
 	)`); err != nil {
+		return err
+	}
+	// Gross-/Kleinschreibung bei E-Mail-Adressen wird ignoriert, wie vorher COLLATE NOCASE.
+	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique ON users (lower(email))`); err != nil {
 		return err
 	}
 	if err := migrateVerifiedColumn(db); err != nil {
@@ -65,8 +70,8 @@ func createAuthTables(db *sql.DB) error {
 	for _, table := range tokenTables {
 		if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS ` + table + ` (
 			token_hash TEXT PRIMARY KEY,
-			email TEXT NOT NULL COLLATE NOCASE,
-			expires_at INTEGER NOT NULL
+			email TEXT NOT NULL,
+			expires_at BIGINT NOT NULL
 		)`); err != nil {
 			return err
 		}
@@ -75,7 +80,7 @@ func createAuthTables(db *sql.DB) error {
 	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS csrf_tokens (
 		id_hash TEXT PRIMARY KEY,
 		token TEXT NOT NULL,
-		expires_at INTEGER NOT NULL
+		expires_at BIGINT NOT NULL
 	)`)
 	return err
 }
@@ -84,17 +89,24 @@ func createAuthTables(db *sql.DB) error {
 // der E-Mail-Bestaetigung existierten, werden dabei einmalig als bestaetigt markiert.
 func migrateVerifiedColumn(db *sql.DB) error {
 	var n int
-	if err := db.QueryRow("SELECT COUNT(*) FROM pragma_table_info('users') WHERE name = 'verified'").Scan(&n); err != nil {
+	if err := db.QueryRow(`SELECT COUNT(*) FROM information_schema.columns
+		WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'verified'`).Scan(&n); err != nil {
 		return err
 	}
 	if n > 0 {
 		return nil
 	}
-	if _, err := db.Exec("ALTER TABLE users ADD COLUMN verified INTEGER NOT NULL DEFAULT 0"); err != nil {
+	if _, err := db.Exec("ALTER TABLE users ADD COLUMN verified BOOLEAN NOT NULL DEFAULT FALSE"); err != nil {
 		return err
 	}
-	_, err := db.Exec("UPDATE users SET verified = 1")
+	_, err := db.Exec("UPDATE users SET verified = TRUE")
 	return err
+}
+
+// isUniqueViolation erkennt den Verstoß gegen den eindeutigen E-Mail-Index (SQLSTATE 23505).
+func isUniqueViolation(err error) bool {
+	var pqErr *pq.Error
+	return errors.As(err, &pqErr) && pqErr.Code == "23505"
 }
 
 // ── Handler ─────────────────────────────────────────────────────────────────────────────────────
@@ -313,9 +325,9 @@ func (s *Store) CreateUser(email, password string) error {
 	if err != nil {
 		return err
 	}
-	_, err = s.db.Exec("INSERT INTO users (email, password_hash) VALUES (?, ?)", email, hash)
+	_, err = s.db.Exec("INSERT INTO users (email, password_hash) VALUES ($1, $2)", email, hash)
 	if err != nil {
-		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+		if isUniqueViolation(err) {
 			return errAccountExists
 		}
 		return err
@@ -326,7 +338,7 @@ func (s *Store) CreateUser(email, password string) error {
 func (s *Store) Authenticate(email, password string) (*User, error) {
 	var storedEmail, hash string
 	var verified bool
-	err := s.db.QueryRow("SELECT email, password_hash, verified FROM users WHERE email = ? COLLATE NOCASE", email).Scan(&storedEmail, &hash, &verified)
+	err := s.db.QueryRow("SELECT email, password_hash, verified FROM users WHERE lower(email) = lower($1)", email).Scan(&storedEmail, &hash, &verified)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, errInvalidCredentials
 	}
@@ -351,7 +363,7 @@ func (s *Store) Authenticate(email, password string) (*User, error) {
 // createToken erzeugt einen Einmal-Token fuer email in table und ersetzt aeltere derselben Adresse.
 // In der DB liegt nur der SHA-256-Hash; der Klartext-Token geht ausschliesslich in den Link.
 func (s *Store) createToken(table, email string, ttl time.Duration) (string, error) {
-	if _, err := s.db.Exec("DELETE FROM "+table+" WHERE email = ? COLLATE NOCASE", email); err != nil {
+	if _, err := s.db.Exec("DELETE FROM "+table+" WHERE lower(email) = lower($1)", email); err != nil {
 		return "", err
 	}
 	return s.insertToken(table, email, ttl)
@@ -365,10 +377,10 @@ func (s *Store) insertToken(table, email string, ttl time.Duration) (string, err
 		return "", err
 	}
 	now := time.Now()
-	if _, err := s.db.Exec("DELETE FROM "+table+" WHERE expires_at <= ?", now.Unix()); err != nil {
+	if _, err := s.db.Exec("DELETE FROM "+table+" WHERE expires_at <= $1", now.Unix()); err != nil {
 		return "", err
 	}
-	_, err = s.db.Exec("INSERT INTO "+table+" (token_hash, email, expires_at) VALUES (?, ?, ?)",
+	_, err = s.db.Exec("INSERT INTO "+table+" (token_hash, email, expires_at) VALUES ($1, $2, $3)",
 		hashToken(token), email, now.Add(ttl).Unix())
 	if err != nil {
 		return "", err
@@ -382,7 +394,7 @@ func (s *Store) consumeToken(table, token string) (string, error) {
 		return "", errInvalidToken
 	}
 	var email string
-	err := s.db.QueryRow("DELETE FROM "+table+" WHERE token_hash = ? AND expires_at > ? RETURNING email",
+	err := s.db.QueryRow("DELETE FROM "+table+" WHERE token_hash = $1 AND expires_at > $2 RETURNING email",
 		hashToken(token), time.Now().Unix()).Scan(&email)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", errInvalidToken
@@ -400,7 +412,7 @@ func (s *Store) VerifyEmail(token string) error {
 	if err != nil {
 		return err
 	}
-	_, err = s.db.Exec("UPDATE users SET verified = 1 WHERE email = ? COLLATE NOCASE", email)
+	_, err = s.db.Exec("UPDATE users SET verified = TRUE WHERE lower(email) = lower($1)", email)
 	return err
 }
 
@@ -419,7 +431,7 @@ func (s *Store) ResetPassword(token, newPassword string) error {
 	if err != nil {
 		return err
 	}
-	if _, err := s.db.Exec("UPDATE users SET password_hash = ?, verified = 1 WHERE email = ? COLLATE NOCASE", hash, email); err != nil {
+	if _, err := s.db.Exec("UPDATE users SET password_hash = $1, verified = TRUE WHERE lower(email) = lower($2)", hash, email); err != nil {
 		return err
 	}
 	return s.deleteSessionsOf(email)
@@ -428,14 +440,14 @@ func (s *Store) ResetPassword(token, newPassword string) error {
 // AccountExists meldet, ob ein Konto mit dieser E-Mail existiert.
 func (s *Store) AccountExists(email string) bool {
 	var n int
-	err := s.db.QueryRow("SELECT COUNT(*) FROM users WHERE email = ? COLLATE NOCASE", email).Scan(&n)
+	err := s.db.QueryRow("SELECT COUNT(*) FROM users WHERE lower(email) = lower($1)", email).Scan(&n)
 	return err == nil && n > 0
 }
 
 // IsUnverified meldet, ob ein Konto mit dieser E-Mail existiert und noch unbestaetigt ist.
 func (s *Store) IsUnverified(email string) bool {
 	var n int
-	err := s.db.QueryRow("SELECT COUNT(*) FROM users WHERE email = ? COLLATE NOCASE AND verified = 0", email).Scan(&n)
+	err := s.db.QueryRow("SELECT COUNT(*) FROM users WHERE lower(email) = lower($1) AND NOT verified", email).Scan(&n)
 	return err == nil && n > 0
 }
 
@@ -453,8 +465,8 @@ func (s *Store) CreateSession(email string) (string, error) {
 func (s *Store) UserByToken(token string) (*User, bool) {
 	var user User
 	err := s.db.QueryRow(`SELECT users.email, users.password_hash FROM sessions
-		JOIN users ON users.email = sessions.email COLLATE NOCASE
-		WHERE sessions.token_hash = ? AND sessions.expires_at > ?`,
+		JOIN users ON lower(users.email) = lower(sessions.email)
+		WHERE sessions.token_hash = $1 AND sessions.expires_at > $2`,
 		hashToken(token), time.Now().Unix()).Scan(&user.Email, &user.PasswordHash)
 	if err != nil {
 		return nil, false
@@ -463,7 +475,7 @@ func (s *Store) UserByToken(token string) (*User, bool) {
 }
 
 func (s *Store) DeleteSession(token string) {
-	if _, err := s.db.Exec("DELETE FROM sessions WHERE token_hash = ?", hashToken(token)); err != nil {
+	if _, err := s.db.Exec("DELETE FROM sessions WHERE token_hash = $1", hashToken(token)); err != nil {
 		log.Printf("delete session: %v", err)
 	}
 }
@@ -471,16 +483,16 @@ func (s *Store) DeleteSession(token string) {
 // DeleteUser loescht das Konto mit allen Tokens, Sitzungen und Studio-Daten.
 func (s *Store) DeleteUser(email string) error {
 	key := strings.ToLower(email)
-	if _, err := s.db.Exec("DELETE FROM users WHERE email = ? COLLATE NOCASE", key); err != nil {
+	if _, err := s.db.Exec("DELETE FROM users WHERE lower(email) = lower($1)", key); err != nil {
 		return err
 	}
 	for _, table := range tokenTables {
-		if _, err := s.db.Exec("DELETE FROM "+table+" WHERE email = ? COLLATE NOCASE", key); err != nil {
+		if _, err := s.db.Exec("DELETE FROM "+table+" WHERE lower(email) = lower($1)", key); err != nil {
 			return err
 		}
 	}
 	for _, table := range []string{"songs", "studio_fields", "studio_view"} {
-		if _, err := s.db.Exec("DELETE FROM "+table+" WHERE owner = ?", key); err != nil {
+		if _, err := s.db.Exec("DELETE FROM "+table+" WHERE lower(owner) = lower($1)", key); err != nil {
 			return err
 		}
 	}
@@ -488,7 +500,7 @@ func (s *Store) DeleteUser(email string) error {
 }
 
 func (s *Store) deleteSessionsOf(email string) error {
-	_, err := s.db.Exec("DELETE FROM sessions WHERE email = ? COLLATE NOCASE", email)
+	_, err := s.db.Exec("DELETE FROM sessions WHERE lower(email) = lower($1)", email)
 	return err
 }
 
@@ -593,10 +605,10 @@ func (s *Store) NewCSRFToken() (cookieID, token string, err error) {
 		return "", "", err
 	}
 	now := time.Now()
-	if _, err := s.db.Exec("DELETE FROM csrf_tokens WHERE expires_at <= ?", now.Unix()); err != nil {
+	if _, err := s.db.Exec("DELETE FROM csrf_tokens WHERE expires_at <= $1", now.Unix()); err != nil {
 		return "", "", err
 	}
-	_, err = s.db.Exec("INSERT INTO csrf_tokens (id_hash, token, expires_at) VALUES (?, ?, ?)",
+	_, err = s.db.Exec("INSERT INTO csrf_tokens (id_hash, token, expires_at) VALUES ($1, $2, $3)",
 		hashToken(cookieID), token, now.Add(csrfTokenTTL).Unix())
 	if err != nil {
 		return "", "", err
@@ -607,7 +619,7 @@ func (s *Store) NewCSRFToken() (cookieID, token string, err error) {
 // CSRFTokenFor liefert das noch gueltige Token zu einer bestehenden Cookie-ID, falls vorhanden.
 func (s *Store) CSRFTokenFor(cookieID string) (string, bool) {
 	var token string
-	err := s.db.QueryRow("SELECT token FROM csrf_tokens WHERE id_hash = ? AND expires_at > ?",
+	err := s.db.QueryRow("SELECT token FROM csrf_tokens WHERE id_hash = $1 AND expires_at > $2",
 		hashToken(cookieID), time.Now().Unix()).Scan(&token)
 	if err != nil {
 		return "", false

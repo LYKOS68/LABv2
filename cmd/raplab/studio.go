@@ -295,28 +295,31 @@ type Field struct {
 func createStudioTables(db *sql.DB) error {
 	statements := []string{
 		`CREATE TABLE IF NOT EXISTS songs (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			owner TEXT NOT NULL COLLATE NOCASE,
+			id BIGSERIAL PRIMARY KEY,
+			owner TEXT NOT NULL,
 			title TEXT NOT NULL,
 			text TEXT NOT NULL DEFAULT ''
 		)`,
+		`CREATE INDEX IF NOT EXISTS songs_owner_idx ON songs (lower(owner))`,
 		`CREATE TABLE IF NOT EXISTS studio_fields (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			owner TEXT NOT NULL COLLATE NOCASE,
+			id BIGSERIAL PRIMARY KEY,
+			owner TEXT NOT NULL,
 			type TEXT NOT NULL,
-			x REAL NOT NULL,
-			y REAL NOT NULL,
-			w REAL NOT NULL,
-			h REAL NOT NULL,
+			x DOUBLE PRECISION NOT NULL,
+			y DOUBLE PRECISION NOT NULL,
+			w DOUBLE PRECISION NOT NULL,
+			h DOUBLE PRECISION NOT NULL,
 			text TEXT NOT NULL DEFAULT '',
-			song_id INTEGER NOT NULL DEFAULT 0
+			song_id BIGINT NOT NULL DEFAULT 0
 		)`,
+		`CREATE INDEX IF NOT EXISTS studio_fields_owner_idx ON studio_fields (lower(owner))`,
 		`CREATE TABLE IF NOT EXISTS studio_view (
-			owner TEXT PRIMARY KEY COLLATE NOCASE,
-			x REAL NOT NULL,
-			y REAL NOT NULL,
-			scale REAL NOT NULL
+			owner TEXT NOT NULL,
+			x DOUBLE PRECISION NOT NULL,
+			y DOUBLE PRECISION NOT NULL,
+			scale DOUBLE PRECISION NOT NULL
 		)`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS studio_view_owner_idx ON studio_view (lower(owner))`,
 	}
 	for _, statement := range statements {
 		if _, err := db.Exec(statement); err != nil {
@@ -327,7 +330,7 @@ func createStudioTables(db *sql.DB) error {
 }
 
 func (s *Store) ListSongs(owner string) ([]Song, error) {
-	rows, err := s.db.Query("SELECT id, title FROM songs WHERE owner = ? ORDER BY title COLLATE NOCASE", owner)
+	rows, err := s.db.Query("SELECT id, title FROM songs WHERE lower(owner) = lower($1) ORDER BY lower(title)", owner)
 	if err != nil {
 		return nil, err
 	}
@@ -344,11 +347,9 @@ func (s *Store) ListSongs(owner string) ([]Song, error) {
 }
 
 func (s *Store) CreateSong(owner, title string) (Song, error) {
-	result, err := s.db.Exec("INSERT INTO songs (owner, title) VALUES (?, ?)", owner, title)
-	if err != nil {
-		return Song{}, err
-	}
-	id, err := result.LastInsertId()
+	var id int64
+	err := s.db.QueryRow("INSERT INTO songs (owner, title) VALUES ($1, $2) RETURNING id",
+		owner, title).Scan(&id)
 	if err != nil {
 		return Song{}, err
 	}
@@ -357,7 +358,7 @@ func (s *Store) CreateSong(owner, title string) (Song, error) {
 
 func (s *Store) GetSong(owner string, id int64) (Song, error) {
 	var song Song
-	err := s.db.QueryRow("SELECT id, title, text FROM songs WHERE id = ? AND owner = ?", id, owner).
+	err := s.db.QueryRow("SELECT id, title, text FROM songs WHERE id = $1 AND lower(owner) = lower($2)", id, owner).
 		Scan(&song.ID, &song.Title, &song.Text)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Song{}, errNotFound
@@ -366,14 +367,14 @@ func (s *Store) GetSong(owner string, id int64) (Song, error) {
 }
 
 func (s *Store) SaveSongText(owner string, id int64, text string) error {
-	result, err := s.db.Exec("UPDATE songs SET text = ? WHERE id = ? AND owner = ?", text, id, owner)
+	result, err := s.db.Exec("UPDATE songs SET text = $1 WHERE id = $2 AND lower(owner) = lower($3)", text, id, owner)
 	return requireOneRow(result, err)
 }
 
 // LoadView liefert die gespeicherte Ansicht oder die Startansicht (0, 0, 100 %).
 func (s *Store) LoadView(owner string) (View, error) {
 	view := View{Scale: 1}
-	err := s.db.QueryRow("SELECT x, y, scale FROM studio_view WHERE owner = ?", owner).
+	err := s.db.QueryRow("SELECT x, y, scale FROM studio_view WHERE lower(owner) = lower($1)", owner).
 		Scan(&view.X, &view.Y, &view.Scale)
 	if errors.Is(err, sql.ErrNoRows) {
 		return View{Scale: 1}, nil
@@ -382,8 +383,8 @@ func (s *Store) LoadView(owner string) (View, error) {
 }
 
 func (s *Store) SaveView(owner string, view View) error {
-	_, err := s.db.Exec(`INSERT INTO studio_view (owner, x, y, scale) VALUES (?, ?, ?, ?)
-		ON CONFLICT(owner) DO UPDATE SET x = excluded.x, y = excluded.y, scale = excluded.scale`,
+	_, err := s.db.Exec(`INSERT INTO studio_view (owner, x, y, scale) VALUES ($1, $2, $3, $4)
+		ON CONFLICT (lower(owner)) DO UPDATE SET x = excluded.x, y = excluded.y, scale = excluded.scale`,
 		owner, view.X, view.Y, view.Scale)
 	return err
 }
@@ -397,7 +398,7 @@ func scanField(row interface{ Scan(...any) error }) (Field, error) {
 }
 
 func (s *Store) ListFields(owner string) ([]Field, error) {
-	rows, err := s.db.Query("SELECT "+fieldColumns+" FROM studio_fields WHERE owner = ? ORDER BY id", owner)
+	rows, err := s.db.Query("SELECT "+fieldColumns+" FROM studio_fields WHERE lower(owner) = lower($1) ORDER BY id", owner)
 	if err != nil {
 		return nil, err
 	}
@@ -414,7 +415,7 @@ func (s *Store) ListFields(owner string) ([]Field, error) {
 }
 
 func (s *Store) GetField(owner string, id int64) (Field, error) {
-	row := s.db.QueryRow("SELECT "+fieldColumns+" FROM studio_fields WHERE id = ? AND owner = ?", id, owner)
+	row := s.db.QueryRow("SELECT "+fieldColumns+" FROM studio_fields WHERE id = $1 AND lower(owner) = lower($2)", id, owner)
 	f, err := scanField(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Field{}, errNotFound
@@ -423,18 +424,15 @@ func (s *Store) GetField(owner string, id int64) (Field, error) {
 }
 
 func (s *Store) CreateField(owner string, f Field) (Field, error) {
-	result, err := s.db.Exec(`INSERT INTO studio_fields (owner, type, x, y, w, h, text, song_id)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, owner, f.Type, f.X, f.Y, f.W, f.H, f.Text, f.SongID)
-	if err != nil {
-		return Field{}, err
-	}
-	f.ID, err = result.LastInsertId()
+	err := s.db.QueryRow(`INSERT INTO studio_fields (owner, type, x, y, w, h, text, song_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+		owner, f.Type, f.X, f.Y, f.W, f.H, f.Text, f.SongID).Scan(&f.ID)
 	return f, err
 }
 
 func (s *Store) UpdateField(owner string, f Field) error {
-	result, err := s.db.Exec(`UPDATE studio_fields SET x = ?, y = ?, w = ?, h = ?, text = ?, song_id = ?
-		WHERE id = ? AND owner = ?`, f.X, f.Y, f.W, f.H, f.Text, f.SongID, f.ID, owner)
+	result, err := s.db.Exec(`UPDATE studio_fields SET x = $1, y = $2, w = $3, h = $4, text = $5, song_id = $6
+		WHERE id = $7 AND lower(owner) = lower($8)`, f.X, f.Y, f.W, f.H, f.Text, f.SongID, f.ID, owner)
 	return requireOneRow(result, err)
 }
 

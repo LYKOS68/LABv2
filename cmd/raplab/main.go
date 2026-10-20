@@ -7,9 +7,8 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 
-	_ "modernc.org/sqlite"
+	_ "github.com/lib/pq"
 
 	"rap-lab/web"
 )
@@ -17,8 +16,15 @@ import (
 // Seiten, Vorlagen und static/ kommen eingebettet aus dem Paket web (Ordner web/ in der Wurzel).
 var webFiles = web.Files
 
+// Datenbank-Zugang: DATABASE_URL uebernimmt, sonst dieser Default (lokal, kein SSL).
+const defaultDBURL = "postgres://raplab@localhost:5432/raplab?sslmode=disable"
+
 func main() {
-	store, err := newStore("data/raplab.sqlite")
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		dsn = defaultDBURL
+	}
+	store, err := newStore(dsn)
 	if err != nil {
 		log.Fatalf("store init failed: %v", err)
 	}
@@ -66,24 +72,23 @@ type Store struct {
 	db *sql.DB
 }
 
-func newStore(dbPath string) (*Store, error) {
-	if err := os.MkdirAll(filepath.Dir(dbPath), 0o700); err != nil {
-		return nil, err
-	}
-	db, err := sql.Open("sqlite", dbPath)
+// newStore verbindet zur Datenbank (PostgreSQL) und legt fehlende Tabellen an.
+// PostgreSQL 13 oder neuer: die Tests nutzen DROP DATABASE WITH (FORCE).
+func newStore(dsn string) (*Store, error) {
+	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		return nil, err
 	}
-	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
-		return nil, err
-	}
-	if _, err := db.Exec("PRAGMA busy_timeout=5000"); err != nil {
+	if err := db.Ping(); err != nil {
+		db.Close()
 		return nil, err
 	}
 	if err := createAuthTables(db); err != nil {
+		db.Close()
 		return nil, err
 	}
 	if err := createStudioTables(db); err != nil {
+		db.Close()
 		return nil, err
 	}
 	return &Store{db: db}, nil

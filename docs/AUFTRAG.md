@@ -6,22 +6,24 @@
 
 Das Endprodukt ist eine **Marktplatz-App für Musikschaffende**: Community-Plattform mit Künstlerprofilen, Nachrichten, Feedback und einem Kleinanzeigenbereich für Angebote und Gesuche (Beats, Mixing, Mastering, Ghostwriting, Musikvideos, Covergestaltung, gemeinsame Projekte). Leitfrage: „Was kann ich selbst, und wen brauche ich für den Rest?"
 
-Stack: Go als zentraler Orchestrator (Router, Businesslogik, SQLite), Frontend über HTML-Vorlagen, als PWA lauffähig. Repo: `LYKOS68/LABv2`, Lizenz Polyform Noncommercial 1.0.0, Owner Roman Hild (LYKOS68) als Product Owner & Architect.
+Stack: Go als zentraler Orchestrator (Router, Businesslogik), Frontend über HTML-Vorlagen, als PWA lauffähig. **Datenbank: PostgreSQL** (`lib/pq`, Verbindung über `DATABASE_URL`, sonst `postgres://raplab@localhost:5432/raplab?sslmode=disable`; PostgreSQL 13+ wegen `DROP DATABASE WITH (FORCE)` in den Tests). Repo: `LYKOS68/LABv2`, Lizenz Polyform Noncommercial 1.0.0, Owner Roman Hild (LYKOS68) als Product Owner & Architect.
 
 ## 2. Aktueller Stand (Inventur)
 
-**Wo liegt der Code:** alles flach in `cmd/raplab/` (Package `main`), 5 Go-Dateien, 2415 Zeilen, dazu 42 grüne Tests.
+**Wo liegt der Code:** alles flach in `cmd/raplab/` (Package `main`), 5 Go-Dateien, dazu 42 Tests.
 
-| Datei | Zeilen | Status |
-|---|---:|---|
-| `auth.go` | 797 | **fertig**: Register, E-Mail-Verifikation, Login/Logout, Passwort-Reset, Account-Löschung, Sessions, Tokens, bcrypt, CSRF, Rate-Limiter, Mailer |
-| `main_test.go` | 613 | 28 Tests, grün |
-| `studio.go` | 501 | Studio-Page + API + CSRF, erste App-Fläche |
-| `studio_test.go` | 350 | 14 Tests, grün |
-| `main.go` | 146 | Basis-Setup: ServeMux, Store/SQLite, Static, Render, Home/Connect |
-| `web/web.go` | 8 | toter Stub |
+| Datei | Status |
+|---|---|
+| `auth.go` | **fertig**: Register, E-Mail-Verifikation, Login/Logout, Passwort-Reset, Account-Löschung, Sessions, Tokens, Argon2id, CSRF, Rate-Limiter, Mailer |
+| `main_test.go` | 28 Tests |
+| `studio.go` | Studio-Page + API + CSRF, erste App-Fläche |
+| `studio_test.go` | 14 Tests |
+| `main.go` | Basis-Setup: ServeMux, Store/Postgres, Static, Render, Home/Connect |
+| `web/web.go` | toter Stub |
 
-**Fertig:** Etappe 1 (DB, Router, Config) und Etappe 2 (Auth komplett inkl. Tests).
+**Postgres-Migration (Etappe 1) ist durch:** `modernc.org/sqlite` raus, `github.com/lib/pq` rein; alle Platzhalter `?` → `$n`; `COLLATE NOCASE` → `lower(...)`-Vergleiche mit passenden Indexen; `AUTOINCREMENT` → `BIGSERIAL`, `LastInsertId` → `INSERT ... RETURNING id`; `verified` ist jetzt `BOOLEAN`; die verifikations-Migration fragt `information_schema` statt `pragma_table_info`. Tests legen pro Test eine frische PG-Datenbank an (`raplab_t_<rand>`, Aufräumen per `DROP DATABASE ... WITH (FORCE)`). **Tests brauchen einen laufenden PostgreSQL:** `TEST_DATABASE_URL` (Wartungs-URL) oder `DATABASE_URL` setzen; ohne erreichbaren Server springen die 38 DB-Tests sauber über (4 Nicht-DB-Tests laufen immer).
+
+**Fertig:** Etappe 1 (DB auf Postgres, Router, Config) und Etappe 2 (Auth komplett inkl. Tests).
 **Fehlt komplett:** Profile, Marktplatz-Inserate (CRUD), Chat/Nachrichten, Feedback/Ranglisten, Deployment.
 **Strukturproblem:** alles in einem Package, `auth.go` als 800-Zeilen-Monolith — Aufteilung in `internal/`-Pakete steht an.
 
@@ -45,8 +47,9 @@ Es wird für die Marktplatz-App **erstmal nicht aktiv genutzt** und bleibt unver
 
 ## 5. Die nächsten Schritte (Morgen)
 
-1. `docs/PRODUCTION_COT.md` schreiben — den kompletten Produktionsprozess der App als Etappen 1–7 (Basis-Setup, Auth, Profile, Inserate-CRUD, Chat, Feedback/Ranglisten, Deployment).
+1. `docs/PRODUCTION_COT.md` schreiben — den kompletten Produktionsprozess der App als Etappen 1–7 (Basis-Setup **inkl. Postgres**, Auth, Profile, Inserate-CRUD, Chat, Feedback/Ranglisten, Deployment).
 2. `docs/REFACTOR_MATRIX.md` schreiben — pro Etappe: was ist schon da, was ist Schrott, was muss nur verschoben werden, was fehlt komplett.
 3. Den `cmd/raplab`-Monolithen (besonders `auth.go`) in saubere `internal/`-Pakete aufteilen — Refactoring statt Neubau, Tests laufen grün halten.
+4. Auf dem PC mit laufendem PostgreSQL einmal `go test ./...` voll durchlaufen lassen (`TEST_DATABASE_URL` setzen) — die 38 DB-Tests gegen die echte Datenbank verifizieren.
 
 **Vorgehensregel:** Erst CoT und Refactoring-Matrix, dann Code anfassen. Ricks Code nur dann heranziehen, wenn eine Etappe ein konkretes Problem hat (z. B. Chat → `myqueue.c`), nicht früher.
