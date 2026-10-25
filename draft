@@ -1,0 +1,39 @@
+Tailwind + templ + chi: 
+Geht 1a. Du baust Tailwind einmalig mit 
+npx tailwindcss -i input.css -o static/app.css --minify und bindest app.css in dein templ Layout ein. 
+Kein JS nötig, nur CSS File.HTTPS: Kommt von deinem Server (Caddy, Nginx, oder Go direkt mit autocert). 
+Tailwind läuft egal ob http oder https, ist nur eine CSS Datei.
+
+Sag, was du wirklich brauchst. 
+„Suche Producer für Deutschrap. Düsterer Sound. 
+Langfristige Zusammenarbeit.“
+„Suche Sängerin für Hook auf einem fertigen Song.
+“Suche Mixer für zwei fertige Tracks.“
+„Suche Videograf für Musikvideo – Konzept steht.“
+Zeig, was du kannst.
+„Mix & Master – 50 € pro Song.“
+„Beats für Rapper – individuelle Produktionen.“
+„Ghostwriting – Hooks und Parts.“
+„Musikvideo – Konzept, Dreh und Schnitt.“
+„Coverdesign für Artists.“
+Du musst kein Label sein.
+Du brauchst auch keine Millionen Follower.
+Du musst nur etwas können, das jemand anderes für sein Projekt braucht.
+DAD is KLEINANZEIGEN mein GLOBAL BEREICH und für GRUPPENBEREICH MACH ICH ERSTMAL PLATZHALTER
+Plattform wie skool werden eigentlich 1zu1 nur dann in global integriert irgendwann.
+
+ich arbeite sowieso immer aktiv und gib jeden befehl, also meistens benutz ich antigravity cli. weil die hat free usage wenn die leer geht log ich mich mit nem anderen google acc ein und hab das selbe free usage nochmal. das kann man 4 mal machen xD. Dan opencode hat ein stabiles free Usages da hab ich auch nous hermes connected. sonst nutzt ich ab und an auch copilot oder codex um alte lokale bin tmp cache etx zu cleanen doer umgebungsvariablen zu setzen. Zeitgleich während ich in vs code mit claude cli chatte.
+Ich sehe den PostgreSQL-Client mit der fertigen Datenbank raplab (PostgreSQL 18.6), daneben das Projekt LABv2 und deine Werkstatt my-space/_source-docs. Dein Ablauf ist immer gleich: Datei öffnen, alles kopieren, in Antigravity, OpenCode oder hier einfügen. JSONL würde ich als Träger nicht nehmen, weil dort jeder Prompt in einer einzigen Zeile mit \n statt Zeilenumbrüchen steht. Das kann man nicht sauber kopieren und auch nicht lesen. Am besten passt das Skill-Format: ein Ordner pro Team mit einer SKILL.md und Unterdateien. Dieses Format hat Anthropic als offenen Standard veröffentlicht, und mehrere Werkzeuge lesen es direkt. Ob Antigravity und OpenCode es schon von selbst laden, weiß ich nicht sicher, das teste ich lieber mit dir. Der Vorteil ist, dass es in beiden Fällen funktioniert. Wo ein Werkzeug Skills kennt, lädt es das Team selbst. Wo nicht, kopierst du einfach die Datei. Damit ist ein Team gleichzeitig Skill und Prompt-Sammlung. Die Prompts sind Markdown mit kurzem Kopf, wiederkehrende Referenzdaten liegen als YAML daneben.
+
+LABv2/teams/qa/
+├── SKILL.md                    Prime Directive „Kein BESTANDEN ohne echte Ausgabe“,
+│                               wann das Team gerufen wird, Liste der Rollen
+├── rollen/
+│   ├── QA-01-testplan.md       aus einer Story Testfälle ableiten
+│   ├── QA-02-abnahme.md        einen Schritt gegen seine MUSS-Kriterien prüfen
+│   ├── QA-03-regression.md     nach Änderungen alles erneut laufen lassen
+│   └── QA-04-ui-check.md       Seite im Browser prüfen (Playwright), Rest MANUELL
+└── referenz/
+    ├── pruefbefehle.yaml       go build/vet/test, curl-Aufrufe, erwartete Ausgaben                                                                                                                           ├── abnahme-checkliste.yaml wiederkehrende Punkte für jede Seite
+    └── bekannte-fehler.yaml    was schon mal schiefging und woran man es erkennt                                                                                                                         
+Jede Rollen-Datei ist ein fertiger Prompt. Oben stehen ID, Team, das empfohlene Werkzeug (zum Beispiel OpenCode mit Hermes) und welche Referenzdateien sie liest, darunter der Auftrag. Weil der Prompt die Daten aus referenz/ selbst lädt, statt sie zu kopieren, funktioniert er bei jedem Modell gleich, und du pflegst Prüfbefehle und Checklisten nur an einer Stelle. Nach demselben Muster entstehen dann teams/software, design für UI, skills für das Installieren von Skills, ceo, reporter,  und Codex. Die beiden Generatoren, die schon in prompts/ liegen, ziehen ins CEO-Teamum. Soll ich QA als erstes komplettes Beispiel bauen? Dann siehst du an einem echten Team, ob das Format für dich beim Kopieren funktioniert, bevor wir die anderen nachziehen.

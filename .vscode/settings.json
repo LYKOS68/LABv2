@@ -1,0 +1,22 @@
+{
+  "go.toolsManagement.autoUpdate": true,
+  "go.lintTool": "go vet",
+  "gopls": {
+    "ui.semanticTokens": true
+  },
+  "[go]": {
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit"
+    }
+  },
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+  "files.associations": {
+    "*.tmpl": "html"
+  },
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
+  "terminal.integrated.env.windows": {
+    "PATH": "C:\\Program Files\\PostgreSQL\\18\\bin;${env:PATH}"
+  }
+}
